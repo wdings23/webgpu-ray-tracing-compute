@@ -384,7 +384,16 @@ namespace Render
                         }
                         iter = baseName.rfind(".");
                         std::string noExtension = baseName.substr(0, iter);
-                        noExtension += ".png";
+                        std::string oldFileExtension = baseName.substr(iter);
+
+                        if(oldFileExtension != ".jpeg" && oldFileExtension != ".png" && oldFileExtension != ".jpg")
+                        {
+                            noExtension += ".png";
+                        }
+                        else
+                        {
+                            noExtension += oldFileExtension;
+                        }
 
                         if(iSignature == iDiffuseSignature)
                         {
@@ -510,6 +519,10 @@ namespace Render
 #if defined(__EMSCRIPTEN__)
                             free(acTextureImageData);
 #endif // __EMSCRIPTEN__
+                        }
+                        else
+                        {
+                            DEBUG_PRINTF("!!! Can\'t load \"%s\"\n", parsedTextureName.c_str());
                         }
                     };
 
@@ -786,6 +799,7 @@ namespace Render
             int32_t miSelectedMesh;
             int32_t miSelectionX;
             int32_t miSelectionY;
+            int32_t miPadding;
         };
 
         // fill out uniform data for buffer for highlighting mesh
@@ -798,6 +812,7 @@ namespace Render
                 uniformBuffer.miSelectionX = mSelectedCoord.x;
                 uniformBuffer.miSelectionY = mSelectedCoord.y;
                 uniformBuffer.miSelectedMesh = -1;
+                uniformBuffer.miPadding = 0;
 
                 mpDevice->GetQueue().WriteBuffer(
                     maRenderJobs["Mesh Selection Graphics"]->mUniformBuffers["uniformBuffer"],
@@ -900,6 +915,7 @@ namespace Render
             uniformBuffer.miSelectionX = mSelectedCoord.x;
             uniformBuffer.miSelectionY = mSelectedCoord.y;
             uniformBuffer.miSelectedMesh = mSelectMeshInfo.miMeshID;
+            uniformBuffer.miPadding = 0;
 
             printf("uniform selected mesh = %d\n", uniformBuffer.miSelectedMesh);
             mpDevice->GetQueue().WriteBuffer(

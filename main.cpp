@@ -68,8 +68,8 @@ float           gfExplodeMultiplier = 0.0f;
 State           gState;
 
 float2 gCameraAngle(0.0f, 0.0f);
-float3 gInitialCameraPosition(0.0f, 0.0f, -3.0f);
-float3 gInitialCameraLookAt(0.0f, 0.0f, 0.0f);
+float3 gInitialCameraPosition(-2.19141412f, -1.60556149f, -1.27983665f);
+float3 gInitialCameraLookAt(4.87508535f, 0.880765200f, -0.374326676f);
 
 std::vector<int32_t> aiHiddenMeshes;
 std::vector<uint32_t> aiVisibilityFlags;
@@ -78,7 +78,7 @@ std::vector<float2> gaBlueNoise;
 
 float3 gMeshMidPt;
 float gfMeshRadius;
-uint32_t giCameraMode = PROJECTION_ORTHOGRAPHIC;
+uint32_t giCameraMode = PROJECTION_PERSPECTIVE;
 
 struct AOUniformData
 {
@@ -396,13 +396,14 @@ void initGraphics()
     //desc.mMeshFilePath = "Vinci_SurfacePro11";
     //desc.mMeshFilePath = "bistro-total";
     //desc.mMeshFilePath = "little-tokyo";
-    desc.mMeshFilePath = "ICE1";
+    desc.mMeshFilePath = "ramen-shop";
     desc.mRenderJobPipelineFilePath = "render-jobs.json";
     desc.mpSampler = &gSampler;
     gRenderer.setup(desc);
     
     createRenderPipeline();
 
+#if 0
     gMeshMidPt = (float3(gRenderer.mTotalMeshExtent.mMaxPosition) + float3(gRenderer.mTotalMeshExtent.mMinPosition)) * 0.5f;
     gfMeshRadius = length(float3(gRenderer.mTotalMeshExtent.mMaxPosition) - float3(gRenderer.mTotalMeshExtent.mMinPosition)) * 0.5f;
 
@@ -417,6 +418,7 @@ void initGraphics()
         gCamera.setLookAt(gCameraLookAt);
         gCamera.setPosition(gCameraPosition);
     }
+#endif // #if 0
 }
 
 /*
@@ -922,8 +924,8 @@ void start()
         data.mJobName = "Deferred Indirect Front Face Graphics";
         gRenderer.addQueueData(data);
 
-        gOutlineUniformData.mfDepthThreshold = 0.2f;
-        gOutlineUniformData.mfNormalThreshold = 0.2f;
+        gOutlineUniformData.mfDepthThreshold = 10000.0f;
+        gOutlineUniformData.mfNormalThreshold = 10000.0f;
 
         data.mJobName = "Outline Graphics";
         data.mShaderResourceName = "uniformBuffer";

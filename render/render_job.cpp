@@ -755,7 +755,7 @@ namespace Render
             else if(uniformType == "buffer")
             {
                 bindingLayout.buffer.type = wgpu::BufferBindingType::ReadOnlyStorage;
-                bindingLayout.buffer.minBindingSize = 64;
+                bindingLayout.buffer.minBindingSize = 0; // 64;
             
                 if(uniformUsage == "read_write_storage")
                 {
