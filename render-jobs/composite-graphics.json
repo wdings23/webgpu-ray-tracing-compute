@@ -1,0 +1,71 @@
+{
+    "Type": "Graphics",
+    "PassType": "Full Triangle",
+    "Shader": "composite-graphics.shader",
+    "Attachments": [
+        {
+            "Name" : "Composite Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        
+        {
+            "Name" : "Ambient Occlusion Output",
+            "Type": "TextureInput",
+            "ParentJob": "Ambient Occlusion Graphics"
+        },
+        {
+            "Name" : "PBR Output",
+            "Type": "TextureInput",
+            "ParentJob": "PBR Graphics"
+        },
+        {
+            "Name" : "Selection Output",
+            "Type": "TextureInput",
+            "ParentJob": "Mesh Selection Graphics"
+        },
+        {
+            "Name" : "Clean Output",
+            "Type": "TextureInput",
+            "ParentJob": "Cross Section Cleanup Graphics"
+        },
+        {
+            "Name" : "Indirect Lighting Output",
+            "Type": "TextureInput",
+            "ParentJob": "Ambient Occlusion Graphics"
+        },
+        {
+            "Name" : "Line Output",
+            "Type": "TextureInput",
+            "ParentJob": "Outline Graphics"
+        }
+    ],
+    "ShaderResources": [
+       
+    ],
+    "BlendStates": [
+        {
+            "Enabled": "False"
+        }
+    ],
+    "DepthStencilState":
+    {
+        "DepthEnable": "True",
+        "DepthWriteMask": "One",
+        "DepthFunc": "LessEqual",
+        "StencilEnable": "False"
+    },
+    "RasterState":
+    {
+        "FillMode": "Solid",
+        "CullMode": "None",
+        "FrontFace": "CounterClockwise"
+    },
+    "VertexFormat":
+    [
+        "Vec4",
+        "Vec4",
+        "Vec4"
+    ],
+    "UseGlobalTextures": "True"
+}

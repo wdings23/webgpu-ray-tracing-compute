@@ -1,0 +1,56 @@
+{
+    "Type": "Graphics",
+    "PassType": "Full Triangle",
+    "Shader": "cross-section-cleanup-graphics.shader",
+    "Attachments": [
+        {
+            "Name" : "Clean Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        
+        {
+            "Name" : "World Position Output",
+            "Type": "TextureInput",
+            "ParentJob": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "Front Face World Position Output",
+            "ParentName": "World Position Output",
+            "Type": "TextureInput",
+            "ParentJob": "Deferred Indirect Front Face Graphics"
+        },
+        {
+            "Name" : "Slice Output",
+            "Type": "TextureInput",
+            "ParentJob": "Cross Section Graphics"
+        }
+    ],
+    "ShaderResources": [
+    ],
+    "BlendStates": [
+        {
+            "Enabled": "False"
+        }
+    ],
+    "DepthStencilState":
+    {
+        "DepthEnable": "True",
+        "DepthWriteMask": "One",
+        "DepthFunc": "LessEqual",
+        "StencilEnable": "False"
+    },
+    "RasterState":
+    {
+        "FillMode": "Solid",
+        "CullMode": "None",
+        "FrontFace": "CounterClockwise"
+    },
+    "VertexFormat":
+    [
+        "Vec4",
+        "Vec4",
+        "Vec4"
+    ],
+    "UseGlobalTextures": "True"
+}

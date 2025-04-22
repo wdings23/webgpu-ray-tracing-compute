@@ -1,0 +1,33 @@
+{
+    "Type": "Copy",
+    "PassType": "Copy",
+    "Attachments": [
+        {
+            "Name": "Previous TAA Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "TAA Graphics",
+            "ParentName": "TAA Output",
+            "Format": "rgba32float"
+        },
+
+        {
+            "Name": "Previous Sky Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Atmosphere Graphics",
+            "ParentName": "Sky Output",
+            "Format": "rgba32float",
+            "ScaleWidth": 0.25,
+            "ScaleHeight": 0.25
+        },
+        {
+            "Name": "Previous Sun Light Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Atmosphere Graphics",
+            "ParentName": "Sun Light Output",
+            "Format": "rgba32float",
+            "ScaleWidth": 0.25,
+            "ScaleHeight": 0.25
+        }
+    ]
+}
+        
