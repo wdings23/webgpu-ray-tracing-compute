@@ -21,6 +21,12 @@
             "PassType": "Draw Meshes"
         },
         {
+            "Name": "Diffuse Temporal Restir Graphics",
+            "Pipeline": "temporal-restir-diffuse-graphics.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle"
+        },
+        {
             "Name": "Outline Graphics",
             "Pipeline": "outline-graphics.json",
             "Type": "Graphics",

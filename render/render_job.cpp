@@ -514,12 +514,14 @@ namespace Render
                     parentAttachmentName = attachment["ParentName"].GetString();
                 }
 
-                std::string attachmentParentJobName = attachment["ParentJob"].GetString();
+                std::string attachmentParentJobName = attachment["ParentJobName"].GetString();
 
+                bool bFound = false;
                 for(auto const& renderJob : aRenderJobs)
                 {
                     if(attachmentParentJobName == renderJob->mName)
                     {
+                        bFound = true;
                         if(renderJob->mOutputImageAttachments.find(parentAttachmentName) != renderJob->mOutputImageAttachments.end())
                         {
                             if(attachmentName == "Depth Output" && mPassType == PassType::DrawMeshes)
@@ -545,7 +547,10 @@ namespace Render
                 if(attachmentParentJobName == "Draw Text Graphics")
                 {
                     mInputImageAttachments[attachmentName] = createInfo.mpDrawTextOutputAttachment;
+                    bFound = true;
                 }
+
+                assert(bFound);
 
             }   // if attachment type == Texture input
 

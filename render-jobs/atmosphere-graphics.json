@@ -21,12 +21,12 @@
         {
             "Name" : "Previous Sky Output",
             "Type": "TextureInput",
-            "ParentJob": "Copy Render Targets"
+            "ParentJobName": "Copy Render Targets"
         },
         {
             "Name" : "Previous Sun Light Output",
             "Type": "TextureInput",
-            "ParentJob": "Copy Render Targets"
+            "ParentJobName": "Copy Render Targets"
         }
     ],
     "ShaderResources": [   

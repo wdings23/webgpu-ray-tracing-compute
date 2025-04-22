@@ -1,7 +1,7 @@
 {
     "Type": "Graphics",
     "PassType": "Full Triangle",
-    "Shader": "temporal-restir-graphics.shader",
+    "Shader": "temporal-restir-diffuse-graphics.shader",
     "Attachments": [
         {
             "Name" : "Radiance Output",
@@ -18,63 +18,48 @@
             "ScaleHeight": 1.0
         },
         {
-            "Name": "Ambient Occlusion Output",
-            "Type": "TextureOutput",
-            "Format": "rgba32float",
-            "ScaleWidth": 1.0,
-            "ScaleHeight": 1.0
-        },
-        {
             "Name": "Hit Position Output",
             "Type": "TextureOutput",
-            "Format": "rgba32float",
+            "Format": "rgba16float",
             "ScaleWidth": 1.0,
             "ScaleHeight": 1.0
         },
         {
             "Name": "Hit Normal Output",
             "Type": "TextureOutput",
-            "Format": "rgba32float",
+            "Format": "rgba16float",
             "ScaleWidth": 1.0,
             "ScaleHeight": 1.0
         },
         {
             "Name": "Sample Ray Hit Position Output",
             "Type": "TextureOutput",
-            "Format": "rgba32float",
+            "Format": "rgba16float",
             "ScaleWidth": 1.0,
             "ScaleHeight": 1.0
         },
         {
             "Name": "Sample Ray Direction Output",
             "Type": "TextureOutput",
-            "Format": "rgba32float",
+            "Format": "rgba16float",
             "ScaleWidth": 1.0,
             "ScaleHeight": 1.0
         },
-        {
-            "Name" : "Ray Direction Output",
-            "Type": "TextureOutput",
-            "Format": "rgba32float",
-            "ScaleWidth": 1.0,
-            "ScaleHeight": 1.0
-        },
-
 
         {
             "Name" : "World Position Output",
             "Type": "TextureInput",
-            "ParentJobName": "Deferred Offscreen Graphics"
+            "ParentJobName": "Deferred Indirect Graphics"
         },
         {
             "Name" : "Normal Output",
             "Type": "TextureInput",
-            "ParentJobName": "Deferred Offscreen Graphics"
+            "ParentJobName": "Deferred Indirect Graphics"
         },
         {
-            "Name" : "Texture Coordinate Output",
+            "Name" : "Texture Coordinate And Clip Space Output",
             "Type": "TextureInput",
-            "ParentJobName": "Deferred Offscreen Graphics"
+            "ParentJobName": "Deferred Indirect Graphics"
         },
         {
             "Name" : "Sky Output",
@@ -84,91 +69,42 @@
         {
             "Name": "Previous Temporal Reservoir Output",
             "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
+            "ParentJobName": "Copy Render Targets"
         },
         {
             "Name": "Previous Temporal Restir Radiance Output",
             "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
-        },
-        {
-            "Name": "Previous Ambient Occlusion Output",
-            "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
+            "ParentJobName": "Copy Render Targets"
         },
         {
             "Name": "Previous Temporal Hit Position Output",
             "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
+            "ParentJobName": "Copy Render Targets"
         },
         {
             "Name": "Previous Temporal Hit Normal Output",
             "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
+            "ParentJobName": "Copy Render Targets"
         },
         {
             "Name": "Previous World Position Output",
             "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
+            "ParentJobName": "Copy Render Targets"
         },
         {
             "Name": "Previous Normal Output",
             "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
+            "ParentJobName": "Copy Render Targets"
         },
         {
             "Name": "Motion Vector Output",
             "Type": "TextureInput",
-            "ParentJobName": "Deferred Offscreen Graphics"
+            "ParentJobName": "Deferred Indirect Graphics"
         },
         {
             "Name": "Previous Motion Vector Output",
             "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
-        },
-        {
-            "Name" : "Irradiance Cache",
-            "Type": "BufferInput",
-            "ParentJobName": "Build Irradiance Cache Compute"
-        },
-
-        {
-            "Name": "Previous Temporal Restir Ray Direction",
-            "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
-        },
-
-
-        {
-            "Name": "Previous Spatial Restir Radiance",
-            "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
-        },
-        {
-            "Name": "Previous Spatial Reservoir",
-            "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
-        },
-        {
-            "Name": "Previous Spatial Hit Position",
-            "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
-        },
-        {
-            "Name": "Previous Spatial Hit Normal",
-            "Type": "TextureInput",
-            "ParentJobName": "Copy Temporal Restir"
-        },
-
-        {
-            "Name": "Direct Sun Radiance Output",
-            "Type": "TextureInput",
-            "ParentJobName": "Temporal Accumulation Indirect Diffuse Graphics"
-        },
-        {
-            "Name": "Emissive Radiance Output",
-            "Type": "TextureInput",
-            "ParentJobName": "Temporal Accumulation Indirect Diffuse Graphics"
+            "ParentJobName": "Copy Render Targets"
         }
 
 
@@ -183,54 +119,32 @@
             "usage": "uniform"
         },
         { 
-            "name" : "BVH Nodes 2",
+            "name" : "bvhNodes",
             "type" : "buffer",
             "shader_stage" : "fragment",
             "usage": "read_only_storage",
-            "size" : 1048576
+            "external": "true"
         },
         { 
-            "name" : "positions 2",
+            "name" : "train-vertex-buffer",
             "type" : "buffer",
             "shader_stage" : "fragment",
             "usage": "read_only_storage",
-            "size" : 1048576
+            "external": "true"
         },
         { 
-            "name" : "triangles 2",
+            "name" : "train-index-buffer",
             "type" : "buffer",
             "shader_stage" : "fragment",
             "usage": "read_only_storage",
-            "size" : 1048576
+            "external": "true"
         },
         {
-            "name": "dynamic bvh nodes",
+            "name": "blueNoiseBuffer",
             "type": "buffer",
             "shader_stage": "fragment",
             "usage": "read_only_storage",
-            "size": 8000000
-        },
-        {
-            "name": "dynamic vertex positions",
-            "type": "buffer",
-            "shader_stage": "fragment",
-            "usage": "read_only_storage",
-            "size": 5000000
-        },
-        {
-            "name": "dynamic triangle indices",
-            "type": "buffer",
-            "shader_stage": "fragment",
-            "usage": "read_only_storage",
-            "size": 5000000
-        },
-        {
-            "name": "blue noise texture",
-            "type": "texture2d",
-            "shader_stage": "fragment",
-            "format": "rgb8unorm",
-            "usage": "uniform",
-            "file_path": "D:\\projects\\free-blue-noise-textures\\512_512\\LDR_RGBA_0.png"
+            "external": "true"
         }
     ],
     "BlendStates": [

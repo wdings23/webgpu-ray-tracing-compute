@@ -11,6 +11,28 @@
         },
 
         {
+            "Name": "Previous World Position Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Deferred Indirect Graphics",
+            "ParentName": "World Position Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Normal Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Deferred Indirect Graphics",
+            "ParentName": "Normal Output",
+            "Format": "rgba16float"
+        },
+        {
+            "Name": "Previous Motion Vector Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Deferred Indirect Graphics",
+            "ParentName": "Motion Vector Output",
+            "Format": "rgba16float"
+        },
+
+        {
             "Name": "Previous Sky Output",
             "Type": "TextureOutput",
             "ParentJobName": "Atmosphere Graphics",
@@ -27,6 +49,36 @@
             "Format": "rgba32float",
             "ScaleWidth": 0.25,
             "ScaleHeight": 0.25
+        },
+
+
+        {
+            "Name": "Previous Temporal Reservoir Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics",
+            "ParentName": "Reservoir Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Temporal Restir Radiance Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics",
+            "ParentName": "Radiance Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Temporal Hit Position Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics",
+            "ParentName": "Hit Position Output",
+            "Format": "rgba16float"
+        },
+        {
+            "Name": "Previous Temporal Hit Normal Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics",
+            "ParentName": "Hit Normal Output",
+            "Format": "rgba16float"
         }
     ]
 }

@@ -4,7 +4,8 @@ const PI: f32 = 3.14159f;
 const PROBE_IMAGE_SIZE: u32 = 8u;
 const VALIDATION_STEP: u32 = 16u;
 
-struct RandomResult {
+struct RandomResult 
+{
     mfNum: f32,
     miSeed: u32,
 };
@@ -26,25 +27,32 @@ struct Tri
     mCentroid : vec4<f32>
 };
 
-struct VertexInput {
+struct VertexFormat
+{
+    mPosition : vec4<f32>,
+    mTexCoord : vec4<f32>,
+    mNormal : vec4<f32> 
+};
+
+struct VertexInput 
+{
     @location(0) pos : vec4<f32>,
     @location(1) texCoord: vec2<f32>,
     @location(2) normal : vec4<f32>
 };
-struct VertexOutput {
-    @location(0) texCoord: vec2<f32>,
-    @builtin(position) pos: vec4<f32>,
-    @location(1) normal: vec4<f32>
+struct VertexOutput 
+{
+    @builtin(position) pos: vec4f,
+    @location(0) uv: vec2f,
 };
-struct FragmentOutput {
+struct FragmentOutput 
+{
     @location(0) radianceOutput : vec4<f32>,
     @location(1) temporalReservoir: vec4<f32>,
-    @location(2) ambientOcclusionOutput: vec4<f32>,
-    @location(3) hitPosition: vec4<f32>,
-    @location(4) hitNormal: vec4<f32>,
-    @location(5) sampleRayHitPosition: vec4<f32>,
-    @location(6) sampleRayDirection: vec4<f32>,
-    @location(7) rayDirection: vec4<f32>,
+    @location(2) hitPosition: vec4<f32>,
+    @location(3) hitNormal: vec4<f32>,
+    @location(4) sampleRayHitPosition: vec4<f32>,
+    @location(5) sampleRayDirection: vec4<f32>
 };
 
 struct UniformData
@@ -130,9 +138,7 @@ struct DefaultUniformData
     mCameraLookDir: vec4<f32>,
 
     mLightRadiance: vec4<f32>,
-    mLightDirection: vec4<f32>,
-
-    mfAmbientOcclusionDistanceThreshold: f32,
+    mLightDirection: vec4<f32>
 };
 
 @group(0) @binding(0)
@@ -154,51 +160,24 @@ var prevTemporalReservoirTexture: texture_2d<f32>;
 var prevTemporalRadianceTexture: texture_2d<f32>;
 
 @group(0) @binding(6)
-var prevAmbientOcclusionTexture: texture_2d<f32>;
-
-@group(0) @binding(7)
 var prevTemporalHitPositionTexture: texture_2d<f32>;
 
-@group(0) @binding(8)
+@group(0) @binding(7)
 var prevTemporalHitNormalTexture: texture_2d<f32>;
 
-@group(0) @binding(9)
+@group(0) @binding(8)
 var prevWorldPositionTexture: texture_2d<f32>;
 
-@group(0) @binding(10)
+@group(0) @binding(9)
 var prevNormalTexture: texture_2d<f32>;
 
-@group(0) @binding(11)
+@group(0) @binding(10)
 var motionVectorTexture: texture_2d<f32>;
 
-@group(0) @binding(12)
+@group(0) @binding(11)
 var prevMotionVectorTexture: texture_2d<f32>;
 
-@group(0) @binding(13)
-var<storage, read> irradianceCache: array<IrradianceCacheEntry>;
-
-@group(0) @binding(14)
-var prevTemporalRayDirectionTexture: texture_2d<f32>;
-
-@group(0) @binding(15)
-var prevSpatialRadianceTexture: texture_2d<f32>;
-
-@group(0) @binding(16)
-var prevSpatialReservoirTexture: texture_2d<f32>;
-
-@group(0) @binding(17)
-var prevSpatialHitPositionTexture: texture_2d<f32>;
-
-@group(0) @binding(18)
-var prevSpatialHitNormalTexture: texture_2d<f32>;
-
-@group(0) @binding(19)
-var prevDirectSunRadianceTexture: texture_2d<f32>;
-
-@group(0) @binding(20)
-var prevEmissiveRadianceTexture: texture_2d<f32>;
-
-@group(0) @binding(21)
+@group(0) @binding(12)
 var textureSampler: sampler;
 
 @group(1) @binding(0)
@@ -217,36 +196,30 @@ struct BVHNode2
 };
 
 @group(1) @binding(1)
-var<storage, read> aBVHNodes: array<BVHNode2>;
+var<storage, read> aSceneBVHNodes: array<BVHNode2>;
 
 @group(1) @binding(2)
-var<storage, read> aSceneVertexPositions: array<vec4<f32>>;
+var<storage, read> aSceneVertexPositions: array<VertexFormat>;
 
 @group(1) @binding(3)
-var<storage, read> aTrianglePositionIndices: array<u32>;
+var<storage, read> aiSceneTriangleIndices: array<u32>;
 
 @group(1) @binding(4)
-var<storage, read> aDynamicBVHNodes: array<BVHNode2>;
+var<storage, read> blueNoiseBuffer: array<vec2f>;
 
 @group(1) @binding(5)
-var<storage, read> aDynamicVertexPositions: array<vec4<f32>>;
-
-@group(1) @binding(6)
-var<storage, read> aiDynamicTriangleIndices: array<u32>;
-
-@group(1) @binding(7)
-var blueNoiseTexture: texture_2d<f32>;
-
-@group(1) @binding(8)
 var<uniform> defaultUniformData: DefaultUniformData;
 
 @vertex
-fn vs_main(in: VertexInput) -> VertexOutput 
+fn vs_main(@builtin(vertex_index) i : u32) -> VertexOutput 
 {
-    var out: VertexOutput;
-    out.pos = in.pos;
-    out.texCoord = in.texCoord;
-    return out;
+    const pos = array(vec2f(-1, 3), vec2f(-1, -1), vec2f(3, -1));
+    const uv = array(vec2f(0, -1), vec2f(0, 1), vec2f(2, 1));
+    var output: VertexOutput;
+    output.pos = vec4f(pos[i], 0.0f, 1.0f);
+    output.uv = uv[i];        
+
+    return output;
 }
 
 @fragment
@@ -261,20 +234,24 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         return out;
     }
 
+    let origScreenCoord: vec2<i32> = vec2<i32>(
+        i32(in.uv.x * f32(defaultUniformData.miScreenWidth)),
+        i32(in.uv.y * f32(defaultUniformData.miScreenHeight)));
+
     var randomResult: RandomResult = initRand(
-        u32(in.texCoord.x * 100.0f + in.texCoord.y * 200.0f) + u32(defaultUniformData.mfRand0 * 100.0f),
+        u32(in.uv.x * 100.0f + in.uv.y * 200.0f) + u32(defaultUniformData.mfRand0 * 100.0f),
         u32(in.pos.x * 10.0f + in.pos.z * 20.0f) + u32(defaultUniformData.mfRand0 * 100.0f),
         10u);
 
-    let worldPosition: vec4<f32> = textureSample(
+    let worldPosition: vec4<f32> = textureLoad(
         worldPositionTexture, 
-        textureSampler, 
-        in.texCoord);
+        origScreenCoord, 
+        0);
 
-    let normal: vec3<f32> = textureSample(
+    let normal: vec3<f32> = textureLoad(
         normalTexture, 
-        textureSampler, 
-        in.texCoord).xyz;
+        origScreenCoord, 
+        0).xyz;
 
     if(worldPosition.w <= 0.0f)
     {
@@ -288,44 +265,41 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let fCenterDepth: f32 = fract(worldPosition.w);
     let iCenterMeshID: i32 = i32(worldPosition.w - fCenterDepth);
 
-    let origScreenCoord: vec2<i32> = vec2<i32>(
-        i32(in.texCoord.x * f32(defaultUniformData.miScreenWidth)),
-        i32(in.texCoord.y * f32(defaultUniformData.miScreenHeight)));
-
     // check for disocclusion for previous history pixel
     var fDisocclusion: f32 = 0.0f;
-    let prevScreenUV: vec2<f32> = getPreviousScreenUV(in.texCoord);
-    if(isPrevUVOutOfBounds(in.texCoord))
+    let prevScreenUV: vec2<f32> = getPreviousScreenUV(in.uv);
+    if(isPrevUVOutOfBounds(in.uv))
     {
         fDisocclusion = 1.0f;
     }
     else
     {
-        fDisocclusion = f32(isDisoccluded2(in.texCoord, prevScreenUV));
+        fDisocclusion = f32(isDisoccluded2(in.uv, prevScreenUV));
     }
     let fValidHistory: f32 = 1.0f - fDisocclusion;
 
+    let prevScreenCoord: vec2<u32> = vec2<u32>(
+        u32(prevScreenUV.x * f32(defaultUniformData.miScreenWidth)),
+        u32(prevScreenUV.y * f32(defaultUniformData.miScreenHeight))
+    );
+
     var result: TemporalRestirResult;
-    result.mReservoir = textureSample(
+    result.mReservoir = textureLoad(
         prevTemporalReservoirTexture,
-        textureSampler,
-        prevScreenUV) * fValidHistory;
-    result.mRadiance = textureSample(
+        prevScreenCoord,
+        0) * fValidHistory;
+    result.mRadiance = textureLoad(
         prevTemporalRadianceTexture,
-        textureSampler,
-        prevScreenUV) * fValidHistory;
-    result.mHitPosition = textureSample(
+        prevScreenCoord,
+        0) * fValidHistory;
+    result.mHitPosition = textureLoad(
         prevTemporalHitPositionTexture,
-        textureSampler,
-        prevScreenUV) * fValidHistory;
-    result.mHitNormal = textureSample(
+        prevScreenCoord,
+        0) * fValidHistory;
+    result.mHitNormal = textureLoad(
         prevTemporalHitNormalTexture,
-        textureSampler,
-        prevScreenUV) * fValidHistory;
-    result.mRayDirection = textureSample(
-        prevTemporalRayDirectionTexture,
-        textureSampler,
-        prevScreenUV) * fValidHistory;
+        prevScreenCoord,
+        0) * fValidHistory;
     result.mIntersectionResult.miHitTriangle = UINT32_MAX;
     result.mfNumValidSamples = 0.0f;
 
@@ -339,59 +313,19 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     var fNumValidSamples: f32 = 0.0f;
 
     var screenCoord: vec2<u32> = vec2<u32>(
-        u32(in.texCoord.x * f32(defaultUniformData.miScreenWidth)),
-        u32(in.texCoord.y * f32(defaultUniformData.miScreenHeight))
+        u32(in.uv.x * f32(defaultUniformData.miScreenWidth)),
+        u32(in.uv.y * f32(defaultUniformData.miScreenHeight))
     );
-    let textureSize: vec2<u32> = textureDimensions(blueNoiseTexture, 0);
 
-    // blue noise tile coordinate
-    let iTileSize: u32 = 32u;
-    let iNumTilesPerRow: u32 = textureSize.x / iTileSize;
-    let iNumTotalTiles: u32 = iNumTilesPerRow * iNumTilesPerRow;
-    
     let iCurrIndex: u32 = u32(defaultUniformData.miFrame) * u32(iNumCenterSamples);
+    let iCoordIndex: u32 = screenCoord.y * u32(defaultUniformData.miScreenWidth) + screenCoord.x;
 
     // center pixel sample
     for(var iSample: i32 = 0; iSample < iNumCenterSamples; iSample++)
     {
-        var sampleRayDirection: vec3<f32> = vec3<f32>(0.0f, 0.0f, 0.0f);
-        
-
-        //if((u32(defaultUniformData.miFrame) > 0u && u32(defaultUniformData.miFrame) % VALIDATION_STEP == 0u && iSample == 0 && fDisocclusion <= 0.0f)/* || fDisocclusion >= 1.0f*/)
-        //{
-        //    // validation step, or just re-use the ray on disocclusion
-        //    sampleRayDirection = result.mRayDirection.xyz;
-        //}
-        //else
+        var sampleRayDirection: vec3f = vec3f(0.0f, 0.0f, 0.0f);
         {
-            let iTileX: u32 = (iCurrIndex + u32(iNumCenterSamples)) % iNumTilesPerRow;
-            let iTileY: u32 = ((iCurrIndex + u32(iNumCenterSamples)) / iNumTilesPerRow) % (iNumTilesPerRow * iNumTilesPerRow);
-
-            let iTileOffsetX: u32 = (iCurrIndex + u32(iNumCenterSamples)) % iTileSize;
-            let iTileOffsetY: u32 = ((iCurrIndex + u32(iNumCenterSamples)) / iTileSize) % (iTileSize * iTileSize);
-
-            let iOffsetX: u32 = iTileOffsetX + iTileX * iTileSize;
-            let iOffsetY: u32 = iTileOffsetY + iTileY * iTileSize; 
-
-            // sample ray for the center sample
-            randomResult = nextRand(randomResult.miSeed);
-            let fRand0: f32 = randomResult.mfNum;
-            randomResult = nextRand(randomResult.miSeed);
-            let fRand1: f32 = randomResult.mfNum;
-
-            screenCoord.x = (screenCoord.x + iOffsetX) % textureSize.x;
-            screenCoord.y = (screenCoord.y + iOffsetY) % textureSize.y;
-            var sampleUV: vec2<f32> = vec2<f32>(
-                f32(screenCoord.x) / f32(textureSize.x),
-                f32(screenCoord.y) / f32(textureSize.y) 
-            );
-
-            var blueNoise: vec3<f32> = textureSample(
-                blueNoiseTexture,
-                textureSampler,
-                sampleUV
-            ).xyz;
-
+            let blueNoise: vec2f = blueNoiseBuffer[(u32(iSample) + iCurrIndex + iCoordIndex) % 64u];
             let ray: Ray = uniformSampling(
                 worldPosition.xyz,
                 normal.xyz,
@@ -407,7 +341,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
             worldPosition.xyz,
             normal,
-            in.texCoord,
+            in.uv,
             sampleRayDirection,
 
             fReservoirSize,
@@ -425,9 +359,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         {
             fIntersection = f32(result.mIntersectionResult.miHitTriangle);
         }
-        out.rayDirection = vec4<f32>(sampleRayDirection.xyz, fIntersection);
+        //out.rayDirection = vec4<f32>(sampleRayDirection.xyz, fIntersection);
         out.sampleRayHitPosition = vec4<f32>(result.mIntersectionResult.mHitPosition, fIntersection);
-        out.sampleRayDirection = vec4<f32>(sampleRayDirection, fIntersection);
+        //out.sampleRayDirection = vec4<f32>(sampleRayDirection, fIntersection);
     }
 
     var firstResult: TemporalRestirResult = result;
@@ -469,23 +403,23 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         var fJacobian: f32 = 1.0f;
         {
             // back project to previous frame's screen coordinate
-            var motionVector: vec2<f32> = textureSample(
+            var motionVector: vec2<f32> = textureLoad(
                 motionVectorTexture,
-                textureSampler,
-                sampleUV).xy;
+                screenCoord,
+                0).xy;
             motionVector = motionVector * 2.0f - 1.0f;
             sampleUV -= motionVector;
 
             // sample world position
-            let sampleWorldPosition: vec4<f32> = textureSample(
+            let sampleWorldPosition: vec4<f32> = textureLoad(
                 prevWorldPositionTexture,
-                textureSampler,
-                sampleUV);
+                screenCoord,
+                0);
 
-            let sampleNormal: vec3<f32> = textureSample(
+            let sampleNormal: vec3<f32> = textureLoad(
                 prevNormalTexture,
-                textureSampler,
-                sampleUV).xyz;
+                screenCoord,
+                0).xyz;
 
             // neighbor normal difference check 
             let fDP: f32 = dot(sampleNormal, normal);
@@ -516,10 +450,10 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             }
 
             // hit point and hit normal for jacobian
-            let sampleHitPoint: vec3<f32> = textureSample(
+            let sampleHitPoint: vec3<f32> = textureLoad(
                 prevTemporalHitPositionTexture,
-                textureSampler,
-                sampleUV).xyz;
+                screenCoord,
+                0).xyz;
 
             if(checkClipSpaceBlock(
                 worldPosition.xyz, 
@@ -528,10 +462,10 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
                 continue;
             }
 
-            var neighborHitNormal: vec3<f32> = textureSample(
+            var neighborHitNormal: vec3<f32> = textureLoad(
                 prevTemporalHitNormalTexture,
-                textureSampler,
-                sampleUV).xyz;
+                screenCoord,
+                0).xyz;
             let centerToNeighborHitPointUnNormalized: vec3<f32> = sampleHitPoint - worldPosition.xyz;
             let neighborToNeighborHitPointUnNormalized: vec3<f32> = sampleHitPoint - sampleWorldPosition.xyz;
             let centerToNeighborHitPointNormalized: vec3<f32> = normalize(centerToNeighborHitPointUnNormalized);
@@ -587,18 +521,21 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     
     out.radianceOutput = result.mRadiance/* * fReservoirWeight*/;
     out.temporalReservoir = result.mReservoir;
-    out.rayDirection = result.mRayDirection;
+    //out.rayDirection = result.mRayDirection;
 
     // debug disocclusion
-    var prevInputTexCoord: vec2<f32> = getPreviousScreenUV(in.texCoord);
-    out.rayDirection.w = f32(isDisoccluded2(in.texCoord, prevInputTexCoord));
+    var prevInputTexCoord: vec2<f32> = getPreviousScreenUV(in.uv);
+    //out.rayDirection.w = f32(isDisoccluded2(in.uv, prevInputTexCoord));
 
     let fAO: f32 = 1.0f - (ambientOcclusionSample.x / ambientOcclusionSample.y);
     
-    out.ambientOcclusionOutput = vec4<f32>(ambientOcclusionSample.x, ambientOcclusionSample.y, fAO, 1.0f);
+    //out.ambientOcclusionOutput = vec4<f32>(ambientOcclusionSample.x, ambientOcclusionSample.y, fAO, 1.0f);
     out.hitPosition = result.mHitPosition;
     out.hitNormal = result.mHitNormal;
     
+    out.hitPosition.w = ambientOcclusionSample.x;
+    out.hitNormal.w = ambientOcclusionSample.y;
+
     return out;
 }
 
@@ -618,6 +555,12 @@ fn temporalRestir(
     fM: f32,
     bTraceRay: bool) -> TemporalRestirResult
 {
+    let textureSize: vec2u = textureDimensions(worldPositionTexture);
+    let inputImageCoord: vec2u = vec2u(
+        u32(inputTexCoord.x * f32(textureSize.x)),
+        u32(inputTexCoord.y * f32(textureSize.y))
+    );
+
     let fOneOverPDF: f32 = 1.0f / PI;
 
     var ret: TemporalRestirResult = prevResult;
@@ -636,25 +579,35 @@ fn temporalRestir(
 
     // get the non-disoccluded and non-out-of-bounds pixel
     var prevInputTexCoord: vec2<f32> = getPreviousScreenUV(inputTexCoord);
+    let prevImageCoord: vec2<u32> = vec2<u32>(
+        u32(prevInputTexCoord.x * f32(textureSize.x)),
+        u32(prevInputTexCoord.y * f32(textureSize.y))
+    );
     if(!isPrevUVOutOfBounds(inputTexCoord) && !isDisoccluded2(inputTexCoord, prevInputTexCoord))
     {
-        prevAmbientOcclusion = textureSample(
-            prevAmbientOcclusionTexture,
-            textureSampler,
-            prevInputTexCoord
-        );
-
         iDisoccluded = 0;
     }
 
-    var prevTemporalReservoir: vec4<f32> = textureSample(
+    var prevTemporalReservoir: vec4<f32> = textureLoad(
         prevTemporalReservoirTexture,
-        textureSampler,
-        prevInputTexCoord
+        prevImageCoord,
+        0
     );
 
-    var fAmbientOcclusionHit: f32 = prevAmbientOcclusion.x;
-    let fAmbientOcclusionCount: f32 = prevAmbientOcclusion.y + 1.0f;
+    var prevHitPosition: vec4<f32> = textureLoad(
+        prevTemporalHitPositionTexture,
+        prevImageCoord,
+        0
+    );
+
+    var prevHitNormal: vec4<f32> = textureLoad(
+        prevTemporalHitNormalTexture,
+        prevImageCoord,
+        0
+    );
+
+    var fAmbientOcclusionHit: f32 = prevHitPosition.w;
+    let fAmbientOcclusionCount: f32 = prevHitNormal.w + 1.0f;
 
     var ray: Ray;
     ray.mOrigin = vec4<f32>(worldPosition + rayDirection * 0.01f, 1.0f);
@@ -682,15 +635,15 @@ fn temporalRestir(
 
     if(!bTraceRay)
     {
-        candidateHitPosition = textureSample(
+        candidateHitPosition = textureLoad(
             prevTemporalHitPositionTexture,
-            textureSampler,
-            inputTexCoord
+            inputImageCoord,
+            0
         );
-        candidateHitNormal = textureSample(
+        candidateHitNormal = textureLoad(
             prevTemporalHitNormalTexture,
-            textureSampler,
-            inputTexCoord
+            inputImageCoord,
+            0
         );
 
         intersectionInfo.miHitTriangle = u32(floor(candidateHitPosition.w));
@@ -708,11 +661,15 @@ fn temporalRestir(
     {
         // didn't hit anything, use skylight
         let skyUV: vec2<f32> = octahedronMap2(ray.mDirection.xyz);
-        
-        candidateRadiance = textureSample(
+        let skyImageCoord: vec2<u32> = vec2<u32>(
+            u32(skyUV.x * f32(textureSize.x)),
+            u32(skyUV.y * f32(textureSize.y))
+        );
+
+        candidateRadiance = textureLoad(
             skyTexture,
-            textureSampler,
-            skyUV);
+            skyImageCoord,
+            0);
 
         candidateHitNormal = ray.mDirection * -1.0f;
         candidateHitPosition.x = worldPosition.x + ray.mDirection.x * 50000.0f;
@@ -725,7 +682,7 @@ fn temporalRestir(
         
         // distance for on-screen radiance and ambient occlusion
         var fDistance: f32 = length(hitPosition - worldPosition);
-        if(fDistance < defaultUniformData.mfAmbientOcclusionDistanceThreshold)
+        if(fDistance < 1.0f)
         {
             fAmbientOcclusionHit += 1.0f;
         }
@@ -744,11 +701,16 @@ fn temporalRestir(
         clipSpacePosition.x = clipSpacePosition.x * 0.5f + 0.5f;
         clipSpacePosition.y = 1.0f - (clipSpacePosition.y * 0.5f + 0.5f);
         clipSpacePosition.z = clipSpacePosition.z * 0.5f + 0.5f;
+        
+        let imageCoord: vec2u = vec2u(
+            u32(clipSpacePosition.x * f32(textureSize.x)),
+            u32(clipSpacePosition.y * f32(textureSize.y))
+        );
 
-        let worldSpaceHitPosition: vec4<f32> = textureSample(
+        let worldSpaceHitPosition: vec4<f32> = textureLoad(
             worldPositionTexture,
-            textureSampler,
-            clipSpacePosition.xy);
+            imageCoord,
+            0);
         var hitPositionClipSpace: vec4<f32> = vec4<f32>(worldSpaceHitPosition.xyz, 1.0f) * defaultUniformData.mViewProjectionMatrix;
         hitPositionClipSpace.x /= hitPositionClipSpace.w;
         hitPositionClipSpace.y /= hitPositionClipSpace.w;
@@ -765,21 +727,21 @@ fn temporalRestir(
         {
             // on screen
 
-            let prevOnScreenUV: vec2<f32> = getPreviousScreenUV(clipSpacePosition.xy);
-            candidateRadiance = textureSample(
-                prevDirectSunRadianceTexture,
-                textureSampler,
-                prevOnScreenUV.xy);
+            //let prevOnScreenUV: vec2<f32> = getPreviousScreenUV(clipSpacePosition.xy);
+            //candidateRadiance = textureSample(
+            //    prevDirectSunRadianceTexture,
+            //    textureSampler,
+            //    prevOnScreenUV.xy);
 
-            candidateRadiance += textureSample(
-                prevEmissiveRadianceTexture,
-                textureSampler,
-                prevOnScreenUV.xy);
+            //candidateRadiance += textureSample(
+            //    prevEmissiveRadianceTexture,
+            //    textureSampler,
+            //    prevOnScreenUV.xy);
 
-            // distance attenuation
-            let diff: vec3<f32> = hitPosition.xyz - worldPosition.xyz;
-            let fDistanceAttenuation: f32 = 1.0f / max(dot(diff, diff), 1.0f);
-            candidateRadiance *= fDistanceAttenuation;
+            //// distance attenuation
+            //let diff: vec3<f32> = hitPosition.xyz - worldPosition.xyz;
+            //let fDistanceAttenuation: f32 = 1.0f / max(dot(diff, diff), 1.0f);
+            //candidateRadiance *= fDistanceAttenuation;
 
             // debug
             //candidateRayDirection = vec4<f32>(
@@ -1115,19 +1077,25 @@ fn rayTriangleIntersection(
 fn isDisoccluded(
     inputTexCoord: vec2<f32>) -> bool
 {
+    let textureSize: vec2<u32> = textureDimensions(worldPositionTexture);
+    let inputScreenCoord: vec2<u32> = vec2<u32>(
+        u32(inputTexCoord.x * f32(textureSize.x)),
+        u32(inputTexCoord.y * f32(textureSize.y))
+    );
+
     // world position, normal, and motion vector
-    let worldPosition = textureSample(
+    let worldPosition = textureLoad(
         worldPositionTexture,
-        textureSampler,
-        inputTexCoord);
-    let normal = textureSample(
+        inputScreenCoord,
+        0);
+    let normal = textureLoad(
         normalTexture,
-        textureSampler,
-        inputTexCoord);
-    var motionVector: vec4<f32> = textureSample(
+        inputScreenCoord,
+        0);
+    var motionVector: vec4<f32> = textureLoad(
         motionVectorTexture,
-        textureSampler,
-        inputTexCoord);
+        inputScreenCoord,
+        0);
     motionVector.x = motionVector.x * 2.0f - 1.0f;
     motionVector.y = motionVector.y * 2.0f - 1.0f;
     
@@ -1141,20 +1109,25 @@ fn isDisoccluded(
         return true;
     }
 
-    var prevWorldPosition: vec4<f32> = textureSample(
+    let backProjectedScreenCoord: vec2<u32> = vec2<u32>(
+        u32(backProjectedScreenUV.x * f32(textureSize.x)),
+        u32(backProjectedScreenUV.y * f32(textureSize.y))
+    );
+
+    var prevWorldPosition: vec4<f32> = textureLoad(
         prevWorldPositionTexture,
-        textureSampler,
-        backProjectedScreenUV
+        backProjectedScreenCoord,
+        0
     );
-    var prevNormal: vec4<f32> = textureSample(
+    var prevNormal: vec4<f32> = textureLoad(
         prevNormalTexture,
-        textureSampler,
-        backProjectedScreenUV
+        backProjectedScreenCoord,
+        0
     );
-    var prevMotionVectorAndMeshIDAndDepth: vec4<f32> = textureSample(
+    var prevMotionVectorAndMeshIDAndDepth: vec4<f32> = textureLoad(
         prevMotionVectorTexture,
-        textureSampler,
-        backProjectedScreenUV
+        backProjectedScreenCoord,
+        0
     );
 
     var fOneOverScreenHeight: f32 = 1.0f / f32(defaultUniformData.miScreenHeight);
@@ -1172,16 +1145,21 @@ fn isDisoccluded(
             fSampleX = clamp(fSampleX, 0.0f, 1.0f);
 
             let sampleUV: vec2<f32> = vec2<f32>(fSampleX, fSampleY);
-            var checkPrevWorldPosition: vec4<f32> = textureSample(
-                prevWorldPositionTexture,
-                textureSampler,
-                sampleUV
+            let sampleScreenCoord: vec2<u32> = vec2<u32>(
+                u32(sampleUV.x * f32(textureSize.x)),
+                u32(sampleUV.y * f32(textureSize.y))
             );
 
-            var checkPrevNormal: vec4<f32> = textureSample(
+            var checkPrevWorldPosition: vec4<f32> = textureLoad(
+                prevWorldPositionTexture,
+                sampleScreenCoord,
+                0
+            );
+
+            var checkPrevNormal: vec4<f32> = textureLoad(
                 prevNormalTexture,
-                textureSampler,
-                sampleUV
+                sampleScreenCoord,
+                0
             );
 
             var worldPositionDiff: vec3<f32> = checkPrevWorldPosition.xyz - worldPosition.xyz;
@@ -1196,20 +1174,20 @@ fn isDisoccluded(
     }
 
     backProjectedScreenUV = bestBackProjectedScreenUV;
-    prevWorldPosition = textureSample(
+    prevWorldPosition = textureLoad(
         prevWorldPositionTexture,
-        textureSampler,
-        backProjectedScreenUV
+        backProjectedScreenCoord,
+        0
     );
-    prevNormal = textureSample(
+    prevNormal = textureLoad(
         prevNormalTexture,
-        textureSampler,
-        backProjectedScreenUV
+        backProjectedScreenCoord,
+        0
     );
-    prevMotionVectorAndMeshIDAndDepth = textureSample(
+    prevMotionVectorAndMeshIDAndDepth = textureLoad(
         prevMotionVectorTexture,
-        textureSampler,
-        backProjectedScreenUV
+        backProjectedScreenCoord,
+        0
     );
     
     let toCurrentDir: vec3<f32> = worldPosition.xyz - prevWorldPosition.xyz;
@@ -1281,17 +1259,18 @@ fn getRadianceFromIrradianceCacheProbe(
     iIrradianceCacheIndex: u32
 ) -> vec3<f32>
 {
-    if(irradianceCache[iIrradianceCacheIndex].mPosition.w == 0.0f)
-    {
-        return vec3<f32>(0.0f, 0.0f, 0.0f);
-    }
+    //if(irradianceCache[iIrradianceCacheIndex].mPosition.w == 0.0f)
+    //{
+    //    return vec3<f32>(0.0f, 0.0f, 0.0f);
+    //}
 
     let probeImageUV: vec2<f32> = octahedronMap2(rayDirection);
     var iImageY: u32 = clamp(u32(probeImageUV.y * f32(PROBE_IMAGE_SIZE)), 0u, PROBE_IMAGE_SIZE - 1u);
     var iImageX: u32 = clamp(u32(probeImageUV.x * f32(PROBE_IMAGE_SIZE)), 0u, PROBE_IMAGE_SIZE - 1u);
     var iImageIndex: u32 = iImageY * PROBE_IMAGE_SIZE + iImageX;
 
-    return irradianceCache[iIrradianceCacheIndex].mImageProbe[iImageIndex].xyz;
+    //return irradianceCache[iIrradianceCacheIndex].mImageProbe[iImageIndex].xyz;
+    return vec3<f32>(0.0f, 0.0f, 0.0f);
 }
 
 /////
@@ -1299,7 +1278,8 @@ fn getIrradianceCachePosition(
     iIrradianceCacheIndex: u32
 ) -> vec4<f32>
 {
-    return irradianceCache[iIrradianceCacheIndex].mPosition;
+    return vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
+    //return irradianceCache[iIrradianceCacheIndex].mPosition;
 }
 
 struct Triangle
@@ -1342,13 +1322,13 @@ fn intersectTri4(
     ray: Ray,
     iTriangleIndex: u32) -> RayTriangleIntersectionResult
 {
-    //let iIndex0: u32 = aiDynamicTriangleIndices[iTriangleIndex * 3];
-    //let iIndex1: u32 = aiDynamicTriangleIndices[iTriangleIndex * 3 + 1];
-    //let iIndex2: u32 = aiDynamicTriangleIndices[iTriangleIndex * 3 + 2];
+    //let iIndex0: u32 = aiSceneTriangleIndices[iTriangleIndex * 3];
+    //let iIndex1: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 1];
+    //let iIndex2: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 2];
 
-    let pos0: vec4<f32> = aDynamicVertexPositions[aiDynamicTriangleIndices[iTriangleIndex * 3]];
-    let pos1: vec4<f32> = aDynamicVertexPositions[aiDynamicTriangleIndices[iTriangleIndex * 3 + 1]];
-    let pos2: vec4<f32> = aDynamicVertexPositions[aiDynamicTriangleIndices[iTriangleIndex * 3 + 2]];
+    let pos0: vec4<f32> = aSceneVertexPositions[aiSceneTriangleIndices[iTriangleIndex * 3]].mPosition;
+    let pos1: vec4<f32> = aSceneVertexPositions[aiSceneTriangleIndices[iTriangleIndex * 3 + 1]].mPosition;
+    let pos2: vec4<f32> = aSceneVertexPositions[aiSceneTriangleIndices[iTriangleIndex * 3 + 2]].mPosition;
 
     var iIntersected: u32 = 0;
     var fT: f32 = FLT_MAX;
@@ -1387,12 +1367,12 @@ fn intersectBVH4(
         let iNodeIndex: u32 = aiStack[iStackTop];
         iStackTop -= 1;
 
-        //let node: BVHNode2 = aDynamicBVHNodes[iNodeIndex];
-        if(aDynamicBVHNodes[iNodeIndex].miPrimitiveID != UINT32_MAX)
+        //let node: BVHNode2 = aSceneBVHNodes[iNodeIndex];
+        if(aSceneBVHNodes[iNodeIndex].miPrimitiveID != UINT32_MAX)
         {
             let intersectionInfo: RayTriangleIntersectionResult = intersectTri4(
                 ray,
-                aDynamicBVHNodes[iNodeIndex].miPrimitiveID);
+                aSceneBVHNodes[iNodeIndex].miPrimitiveID);
 
             if(abs(intersectionInfo.mIntersectPosition.x) < 10000.0f)
             {
@@ -1403,7 +1383,7 @@ fn intersectBVH4(
                     //fClosestDistance = fDistanceToEye;
                     ret.mHitPosition = intersectionInfo.mIntersectPosition.xyz;
                     ret.mHitNormal = intersectionInfo.mIntersectNormal.xyz;
-                    ret.miHitTriangle = aDynamicBVHNodes[iNodeIndex].miPrimitiveID;
+                    ret.miHitTriangle = aSceneBVHNodes[iNodeIndex].miPrimitiveID;
                     ret.mBarycentricCoordinate = intersectionInfo.mBarycentricCoordinate;
 
                     break;
@@ -1415,16 +1395,16 @@ fn intersectBVH4(
             let bIntersect: bool = rayBoxIntersect(
                 ray.mOrigin.xyz,
                 ray.mDirection.xyz,
-                aDynamicBVHNodes[iNodeIndex].mMinBound.xyz,
-                aDynamicBVHNodes[iNodeIndex].mMaxBound.xyz);
+                aSceneBVHNodes[iNodeIndex].mMinBound.xyz,
+                aSceneBVHNodes[iNodeIndex].mMaxBound.xyz);
 
             // node left and right child to stack
             if(bIntersect)
             {
                 iStackTop += 1;
-                aiStack[iStackTop] = aDynamicBVHNodes[iNodeIndex].miChildren0;
+                aiStack[iStackTop] = aSceneBVHNodes[iNodeIndex].miChildren0;
                 iStackTop += 1;
-                aiStack[iStackTop] = aDynamicBVHNodes[iNodeIndex].miChildren1;
+                aiStack[iStackTop] = aSceneBVHNodes[iNodeIndex].miChildren1;
             }
         }
     }
@@ -1436,23 +1416,29 @@ fn intersectBVH4(
 fn getPreviousScreenUV(
     screenUV: vec2<f32>) -> vec2<f32>
 {
+    let textureSize: vec2<u32> = textureDimensions(worldPositionTexture);
+    let screenImageCoord: vec2<u32> = vec2<u32>(
+        u32(screenUV.x * f32(textureSize.x)),
+        u32(screenUV.y * f32(textureSize.y))
+    );
+
     var screenUVCopy: vec2<f32> = screenUV;
-    var motionVector: vec2<f32> = textureSample(
+    var motionVector: vec2<f32> = textureLoad(
         motionVectorTexture,
-        textureSampler,
-        screenUVCopy).xy;
+        screenImageCoord,
+        0).xy;
     motionVector = motionVector * 2.0f - 1.0f;
     var prevScreenUV: vec2<f32> = screenUVCopy - motionVector;
 
-    var worldPosition: vec3<f32> = textureSample(
+    var worldPosition: vec3<f32> = textureLoad(
         worldPositionTexture,
-        textureSampler,
-        screenUVCopy
+        screenImageCoord,
+        0
     ).xyz;
-    var normal: vec3<f32> = textureSample(
+    var normal: vec3<f32> = textureLoad(
         normalTexture,
-        textureSampler,
-        screenUVCopy
+        screenImageCoord,
+        0
     ).xyz;
 
     var fOneOverScreenWidth: f32 = 1.0f / f32(defaultUniformData.miScreenWidth);
@@ -1472,18 +1458,20 @@ fn getPreviousScreenUV(
             sampleUV.x = clamp(sampleUV.x, 0.0f, 1.0f);
             sampleUV.y = clamp(sampleUV.y, 0.0f, 1.0f);
 
-            var checkWorldPosition: vec3<f32> = textureSample(
+            let sampleScreenCoord: vec2<u32> = vec2<u32>(
+                u32(sampleUV.x * f32(textureSize.x)),
+                u32(sampleUV.y * f32(textureSize.y)) 
+            );
+
+            var checkWorldPosition: vec3<f32> = textureLoad(
                 prevWorldPositionTexture,
-                textureSampler,
-                vec2<f32>(
-                    clamp(sampleUV.x, 0.0f, 1.0f),
-                    clamp(sampleUV.y, 0.0f, 1.0f)
-                )
+                sampleScreenCoord,
+                0
             ).xyz;
-            var checkNormal: vec3<f32> = textureSample(
+            var checkNormal: vec3<f32> = textureLoad(
                 prevNormalTexture,
-                textureSampler,
-                sampleUV
+                sampleScreenCoord,
+                0
             ).xyz;
             var fNormalDP: f32 = abs(dot(checkNormal, normal));
 
@@ -1506,35 +1494,45 @@ fn isDisoccluded2(
     prevScreenUV: vec2<f32>
 ) -> bool
 {
-    var worldPosition: vec3<f32> = textureSample(
+    let textureSize: vec2u = textureDimensions(worldPositionTexture);
+    let screenImageCoord: vec2u = vec2u(
+        u32(screenUV.x * f32(textureSize.x)),
+        u32(screenUV.y * f32(textureSize.y))
+    );
+    let prevScreenImageCoord: vec2u = vec2u(
+        u32(prevScreenUV.x * f32(textureSize.x)),
+        u32(prevScreenUV.y * f32(textureSize.y))
+    );
+
+    var worldPosition: vec3<f32> = textureLoad(
         worldPositionTexture,
-        textureSampler,
-        screenUV).xyz;
+        screenImageCoord,
+        0).xyz;
 
-    var prevWorldPosition: vec3<f32> = textureSample(
+    var prevWorldPosition: vec3<f32> = textureLoad(
         prevWorldPositionTexture,
-        textureSampler,
-        prevScreenUV).xyz;
+        prevScreenImageCoord,
+        0).xyz;
 
-    var normal: vec3<f32> = textureSample(
+    var normal: vec3<f32> = textureLoad(
         normalTexture,
-        textureSampler,
-        screenUV).xyz;
+        screenImageCoord,
+        0).xyz;
 
-    var prevNormal: vec3<f32> = textureSample(
+    var prevNormal: vec3<f32> = textureLoad(
         prevNormalTexture,
-        textureSampler,
-        prevScreenUV).xyz;
+        prevScreenImageCoord,
+        0).xyz;
 
-    var motionVector: vec4<f32> = textureSample(
+    var motionVector: vec4<f32> = textureLoad(
         motionVectorTexture,
-        textureSampler,
-        screenUV);
+        screenImageCoord,
+        0);
 
-    var prevMotionVectorAndMeshIDAndDepth: vec4<f32> = textureSample(
+    var prevMotionVectorAndMeshIDAndDepth: vec4<f32> = textureLoad(
         prevMotionVectorTexture,
-        textureSampler,
-        prevScreenUV);
+        prevScreenImageCoord,
+        0);
 
     let iMesh = u32(ceil(motionVector.z - 0.5f)) - 1;
     var fDepth: f32 = motionVector.w;
@@ -1551,12 +1549,15 @@ fn isDisoccluded2(
 ///// 
 fn isPrevUVOutOfBounds(inputTexCoord: vec2<f32>) -> bool
 {
-    var motionVector: vec4<f32> = textureSample(
+    let textureSize: vec2u = textureDimensions(motionVectorTexture);
+    let screenImageCoord: vec2u = vec2u(
+        u32(inputTexCoord.x * f32(textureSize.x)),
+        u32(inputTexCoord.y * f32(textureSize.y))
+    );
+    var motionVector: vec4<f32> = textureLoad(
         motionVectorTexture,
-        textureSampler,
-        inputTexCoord);
-    motionVector.x = motionVector.x * 2.0f - 1.0f;
-    motionVector.y = motionVector.y * 2.0f - 1.0f;
+        screenImageCoord,
+        0);
     let backProjectedScreenUV: vec2<f32> = inputTexCoord - motionVector.xy;
 
     return (backProjectedScreenUV.x < 0.0f || backProjectedScreenUV.x > 1.0 || backProjectedScreenUV.y < 0.0f || backProjectedScreenUV.y > 1.0f);
@@ -1676,10 +1677,10 @@ fn checkClipSpaceBlock(
         }
 
         // compare depth value, smaller is in front, therefore blocked
-        let currWorldPosition: vec4<f32> = textureSample(
+        let currWorldPosition: vec4<f32> = textureLoad(
             worldPositionTexture,
-            textureSampler,
-            currScreenUV);
+            currScreenPosition,
+            0);
         if(currWorldPosition.w == 0.0f)
         {
             continue;

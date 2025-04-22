@@ -336,6 +336,8 @@ void render()
         gCamera.setProjectionType(ProjectionType::PROJECTION_PERSPECTIVE);
     }
 
+    //DEBUG_PRINTF("camera position (%.4f, %.4f, %.4f)\n", gCameraPosition.x, gCameraPosition.y, gCameraPosition.z);
+
     gCamera.setLookAt(gCameraLookAt);
     gCamera.setPosition(gCameraPosition);
     gCamera.update(cameraInfo);
@@ -403,10 +405,11 @@ void initGraphics()
     
     createRenderPipeline();
 
-#if 0
+
     gMeshMidPt = (float3(gRenderer.mTotalMeshExtent.mMaxPosition) + float3(gRenderer.mTotalMeshExtent.mMinPosition)) * 0.5f;
     gfMeshRadius = length(float3(gRenderer.mTotalMeshExtent.mMaxPosition) - float3(gRenderer.mTotalMeshExtent.mMinPosition)) * 0.5f;
 
+#if 0
     if(gfMeshRadius <= 10.0f)
     {
         gInitialCameraLookAt = gMeshMidPt;

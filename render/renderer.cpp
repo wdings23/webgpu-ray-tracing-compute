@@ -627,7 +627,7 @@ namespace Render
             device.GetQueue().WriteTexture(
                 &destination,
                 pImageData,
-                iImageWidth * iImageHeight * 4,
+                iImageWidth* iImageHeight * 4,
                 &layout,
                 &extent);
             stbi_image_free(pImageData);
@@ -641,9 +641,9 @@ namespace Render
             viewDesc.format = wgpu::TextureFormat::RGBA8Unorm;
             viewDesc.label = "Font Texture Atlas";
             viewDesc.mipLevelCount = 1;
-#if !defined(__EMSCRIPTEN__)
+            #if !defined(__EMSCRIPTEN__)
             viewDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-#endif // __EMSCRIPTEN__
+            #endif // __EMSCRIPTEN__
             maTextureViews["font-atlas-image"] = maTextures["font-atlas-image"].CreateView(&viewDesc);
 
 #if defined(__EMSCRIPTEN__)
@@ -713,6 +713,33 @@ namespace Render
             maBuffers["draw-text-uniform"].SetLabel("Draw Text Uniform Buffer");
 
             setupFontPipeline();
+        }
+
+        // bvh
+        {
+            auto fileExtensionStart = desc.mMeshFilePath.rfind(".");
+            std::string baseName = desc.mMeshFilePath.substr(0, fileExtensionStart);
+            std::string bvhName = baseName + "-triangles.bvh";
+
+#if defined(__EMSCRIPTEN__)
+            char* acBVHData = nullptr;
+            uint32_t iFileSize = Loader::loadFile(&acFontInfoData, bvhName.c_str());
+#else
+            std::vector<char> acBVHDataVector;
+            Loader::loadFile(acBVHDataVector, bvhName);
+            char* acBVHData = acBVHDataVector.data();
+            uint32_t iFileSize = (uint32_t)acBVHDataVector.size();
+#endif // __EMSCRIPTEN__
+
+            bufferDesc.size = iFileSize;
+            bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
+            maBuffers["bvhNodes"] = mpDevice->CreateBuffer(&bufferDesc);
+            maBuffers["bvhNodes"].SetLabel("BVH Buffer");
+            mpDevice->GetQueue().WriteBuffer(maBuffers["bvhNodes"], 0, acBVHData, iFileSize);
+
+#if defined(__EMSCRIPTEN__)
+            free(acBVHData);
+#endif // __EMSCRIPTEN__
         }
 
         createRenderJobs(desc);
@@ -1302,10 +1329,10 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["Deferred Indirect Graphics"]->mOutputImageAttachments["Material Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["PBR Graphics"]->mOutputImageAttachments["PBR Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Composite Graphics"]->mOutputImageAttachments["Composite Output"];
-        //wgpu::Texture& swapChainTexture = maRenderJobs["Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
+        wgpu::Texture& swapChainTexture = maRenderJobs["Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["TAA Graphics"]->mOutputImageAttachments["TAA Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments["Selection Output"];
-        wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
+        //wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
         //assert(maRenderJobs.find("Mesh Selection Graphics") != maRenderJobs.end());
         //assert(maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.find("Selection Output") != maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.end());
 
