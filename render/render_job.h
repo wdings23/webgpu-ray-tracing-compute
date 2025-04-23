@@ -37,6 +37,7 @@ namespace Render
 			wgpu::Sampler*											mpSampler;
 
 			wgpu::Buffer(*mpfnGetBuffer)(uint32_t& iBufferSize, std::string const& bufferName, void* pUserData);
+			wgpu::Texture(*mpfnGetTexture)(std::string const& textureName, void* pUserData);
 			void* mpUserData = nullptr;
 
 			wgpu::TextureView*									mpTotalDiffuseTextureView = nullptr;

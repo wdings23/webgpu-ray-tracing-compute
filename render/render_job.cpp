@@ -215,7 +215,7 @@ namespace Render
                     bool bExternalTexture = false;
                     if(shaderResource.HasMember("external"))
                     {
-                        bExternalTexture = true;
+                        mUniformTextures[shaderResourceName] = createInfo.mpfnGetTexture(shaderResourceName, createInfo.mpUserData);
                     }
                 }
 
@@ -740,14 +740,14 @@ namespace Render
                 bindingLayout.texture.sampleType = wgpu::TextureSampleType::Float;
                 bindingLayout.texture.viewDimension = wgpu::TextureViewDimension::e2D;
 
-                if(uniformUsage == "texture_array")
+                /*/if(uniformUsage == "texture_array")
                 {
                     if(uniformName == "totalDiffuseTextures")
                     {
                         bindGroupEntry.textureView = *createInfo.mpTotalDiffuseTextureView;
                     }
                 }
-                else
+                else*/
                 {
                     bindGroupEntry.textureView = mUniformTextures[uniformName].CreateView();
                 }

@@ -140,8 +140,8 @@
             "external": "true"
         },
         {
-            "name": "blueNoiseBuffer",
-            "type": "buffer",
+            "name": "blueNoiseTexture",
+            "type": "texture",
             "shader_stage": "fragment",
             "usage": "read_only_storage",
             "external": "true"

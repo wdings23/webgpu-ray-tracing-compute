@@ -331,7 +331,9 @@ namespace Render
             textureDesc.size.height = iAtlasImageHeight;
             textureDesc.viewFormatCount = 1;
             textureDesc.viewFormats = aViewFormats;
-            mDiffuseTextureAtlas = device.CreateTexture(&textureDesc);
+
+            maTextures["totalDiffuseTextures"] = device.CreateTexture(&textureDesc);
+            mDiffuseTextureAtlas = maTextures["totalDiffuseTextures"];
 
             
 #if defined(__EMSCRIPTEN__)
@@ -723,7 +725,7 @@ namespace Render
 
 #if defined(__EMSCRIPTEN__)
             char* acBVHData = nullptr;
-            uint32_t iFileSize = Loader::loadFile(&acFontInfoData, bvhName.c_str());
+            uint32_t iFileSize = Loader::loadFile(&acBVHData, bvhName.c_str());
 #else
             std::vector<char> acBVHDataVector;
             Loader::loadFile(acBVHDataVector, bvhName);
@@ -736,6 +738,71 @@ namespace Render
             maBuffers["bvhNodes"] = mpDevice->CreateBuffer(&bufferDesc);
             maBuffers["bvhNodes"].SetLabel("BVH Buffer");
             mpDevice->GetQueue().WriteBuffer(maBuffers["bvhNodes"], 0, acBVHData, iFileSize);
+
+            {
+#if defined(__EMSCRIPTEN__)
+                char* acImageData = nullptr;
+                uint32_t iFileSize = Loader::loadFile(&acImageData, "blue-noise.png");
+#else
+                std::vector<char> acBlueNoiseImageDataV;
+                Loader::loadFile(acBlueNoiseImageDataV, "blue-noise.png");
+                char* acImageData = acBlueNoiseImageDataV.data();
+                uint32_t iFileSize = (uint32_t)acBlueNoiseImageDataV.size();
+#endif // __EMSCRIPTEN__
+
+                int32_t iImageWidth = 0, iImageHeight = 0, iNumComp = 0;
+                stbi_uc* pImageData = stbi_load_from_memory((stbi_uc const*)acImageData, iFileSize, &iImageWidth, &iImageHeight, &iNumComp, 4);
+
+                wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
+                wgpu::TextureDescriptor textureDesc = {};
+                textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+                textureDesc.dimension = wgpu::TextureDimension::e2D;
+                textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+                textureDesc.mipLevelCount = 1;
+                textureDesc.sampleCount = 1;
+                textureDesc.size.depthOrArrayLayers = 1;
+                textureDesc.size.width = iImageWidth;
+                textureDesc.size.height = iImageHeight;
+                textureDesc.viewFormatCount = 1;
+                textureDesc.viewFormats = aViewFormats;
+                maTextures["blueNoiseTexture"] = mpDevice->CreateTexture(&textureDesc);
+
+#if defined(__EMSCRIPTEN__)
+                wgpu::TextureDataLayout layout = {};
+#else
+                wgpu::TexelCopyBufferLayout layout = {};
+#endif // __EMSCRIPTEN__
+                layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
+                layout.offset = 0;
+                layout.rowsPerImage = iImageHeight;
+                wgpu::Extent3D extent = {};
+                extent.depthOrArrayLayers = 1;
+                extent.width = iImageWidth;
+                extent.height = iImageHeight;
+
+#if defined(__EMSCRIPTEN__)
+                wgpu::ImageCopyTexture destination = {};
+#else 
+                wgpu::TexelCopyTextureInfo destination = {};
+#endif // __EMSCRIPTEN__
+                destination.aspect = wgpu::TextureAspect::All;
+                destination.mipLevel = 0;
+                destination.origin = {.x = 0, .y = 0, .z = 0};
+                destination.texture = maTextures["blueNoiseTexture"];
+                device.GetQueue().WriteTexture(
+                    &destination,
+                    pImageData,
+                    iImageWidth* iImageHeight * 4,
+                    &layout,
+                    &extent);
+
+                mpDevice->GetQueue().WriteTexture(
+                    &destination, 
+                    pImageData, 
+                    iImageWidth * iImageHeight * 4, 
+                    &layout, 
+                    &extent);
+            }
 
 #if defined(__EMSCRIPTEN__)
             free(acBVHData);
@@ -776,6 +843,8 @@ namespace Render
     */
     void CRenderer::draw(DrawUpdateDescriptor& desc)
     {
+        static float3 sLightDirection = normalize(float3(1.0f, 0.4f, 0.0f));
+
         DefaultUniformData defaultUniformData;
         defaultUniformData.mViewMatrix = *desc.mpViewMatrix;
         defaultUniformData.mProjectionMatrix = *desc.mpProjectionMatrix;
@@ -789,8 +858,10 @@ namespace Render
         defaultUniformData.mCameraPosition = float4(mCameraPosition, 1.0f);
         defaultUniformData.mCameraLookDir = float4(mCameraLookAt, 1.0f);
         defaultUniformData.miNumMeshes = (uint32_t)maMeshTriangleRanges.size();
-        defaultUniformData.mLightRadiance = float4(1.0f, 1.0f, 1.0f, 1.0f);
-        defaultUniformData.mLightDirection = float4(normalize(float3(1.0f, 1.0f, 1.0f)), 1.0f);
+        defaultUniformData.mLightRadiance = float4(10.0f, 10.0f, 10.0f, 1.0f);
+
+        //sLightDirection = sLightDirection + float3(0.01f, 0.0f, -0.00f);
+        defaultUniformData.mLightDirection = float4(normalize(sLightDirection), 1.0f);
 
         // update default uniform buffer
         mpDevice->GetQueue().WriteBuffer(
@@ -1202,6 +1273,14 @@ namespace Render
         };
         createInfo.mpUserData = this;
 
+        createInfo.mpfnGetTexture = [](std::string const& textureName, void* pUserData)
+        {
+            Render::CRenderer* pRenderer = (Render::CRenderer*)pUserData;
+            assert(pRenderer->maTextures.find(textureName) != pRenderer->maTextures.end());
+
+            return pRenderer->maTextures[textureName];
+        };
+
         rapidjson::Document doc;
         {
 #if defined(__EMSCRIPTEN__)
@@ -1329,10 +1408,11 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["Deferred Indirect Graphics"]->mOutputImageAttachments["Material Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["PBR Graphics"]->mOutputImageAttachments["PBR Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Composite Graphics"]->mOutputImageAttachments["Composite Output"];
-        wgpu::Texture& swapChainTexture = maRenderJobs["Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
+        //wgpu::Texture& swapChainTexture = maRenderJobs["Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["TAA Graphics"]->mOutputImageAttachments["TAA Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments["Selection Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
+        wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //assert(maRenderJobs.find("Mesh Selection Graphics") != maRenderJobs.end());
         //assert(maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.find("Selection Output") != maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.end());
 

@@ -205,10 +205,10 @@ var<storage, read> aSceneVertexPositions: array<VertexFormat>;
 var<storage, read> aiSceneTriangleIndices: array<u32>;
 
 @group(1) @binding(4)
-var<storage, read> blueNoiseBuffer: array<vec2f>;
+var blueNoiseTexture: texture_2d<f32>;
 
 @group(1) @binding(5)
-var<uniform> defaultUniformData: DefaultUniformData;
+var<uniform> defaultUniformBuffer: DefaultUniformData;
 
 @vertex
 fn vs_main(@builtin(vertex_index) i : u32) -> VertexOutput 
@@ -229,18 +229,18 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     var out: FragmentOutput;
 
-    if(defaultUniformData.miFrame < 1)
+    if(defaultUniformBuffer.miFrame < 1)
     {
         return out;
     }
 
     let origScreenCoord: vec2<i32> = vec2<i32>(
-        i32(in.uv.x * f32(defaultUniformData.miScreenWidth)),
-        i32(in.uv.y * f32(defaultUniformData.miScreenHeight)));
+        i32(in.uv.x * f32(defaultUniformBuffer.miScreenWidth)),
+        i32(in.uv.y * f32(defaultUniformBuffer.miScreenHeight)));
 
     var randomResult: RandomResult = initRand(
-        u32(in.uv.x * 100.0f + in.uv.y * 200.0f) + u32(defaultUniformData.mfRand0 * 100.0f),
-        u32(in.pos.x * 10.0f + in.pos.z * 20.0f) + u32(defaultUniformData.mfRand0 * 100.0f),
+        u32(in.uv.x * 100.0f + in.uv.y * 200.0f) + u32(defaultUniformBuffer.mfRand0 * 100.0f),
+        u32(in.pos.x * 10.0f + in.pos.z * 20.0f) + u32(defaultUniformBuffer.mfRand0 * 100.0f),
         10u);
 
     let worldPosition: vec4<f32> = textureLoad(
@@ -279,8 +279,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let fValidHistory: f32 = 1.0f - fDisocclusion;
 
     let prevScreenCoord: vec2<u32> = vec2<u32>(
-        u32(prevScreenUV.x * f32(defaultUniformData.miScreenWidth)),
-        u32(prevScreenUV.y * f32(defaultUniformData.miScreenHeight))
+        u32(prevScreenUV.x * f32(defaultUniformBuffer.miScreenWidth)),
+        u32(prevScreenUV.y * f32(defaultUniformBuffer.miScreenHeight))
     );
 
     var result: TemporalRestirResult;
@@ -313,19 +313,34 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     var fNumValidSamples: f32 = 0.0f;
 
     var screenCoord: vec2<u32> = vec2<u32>(
-        u32(in.uv.x * f32(defaultUniformData.miScreenWidth)),
-        u32(in.uv.y * f32(defaultUniformData.miScreenHeight))
+        u32(in.uv.x * f32(defaultUniformBuffer.miScreenWidth)),
+        u32(in.uv.y * f32(defaultUniformBuffer.miScreenHeight))
     );
 
-    let iCurrIndex: u32 = u32(defaultUniformData.miFrame) * u32(iNumCenterSamples);
-    let iCoordIndex: u32 = screenCoord.y * u32(defaultUniformData.miScreenWidth) + screenCoord.x;
+    let iCurrIndex: u32 = u32(defaultUniformBuffer.miFrame) * u32(iNumCenterSamples);
+    let iCoordIndex: u32 = screenCoord.y * u32(defaultUniformBuffer.miScreenWidth) + screenCoord.x;
+
+    let blueNoiseTextureSize: vec2<u32> = textureDimensions(blueNoiseTexture);
 
     // center pixel sample
     for(var iSample: i32 = 0; iSample < iNumCenterSamples; iSample++)
     {
         var sampleRayDirection: vec3f = vec3f(0.0f, 0.0f, 0.0f);
         {
-            let blueNoise: vec2f = blueNoiseBuffer[(u32(iSample) + iCurrIndex + iCoordIndex) % 64u];
+            
+
+            let iOffsetX: u32 = u32(defaultUniformBuffer.miFrame) % blueNoiseTextureSize.x;
+            let iOffsetY: u32 = (u32(defaultUniformBuffer.miFrame) / blueNoiseTextureSize.y) % blueNoiseTextureSize.y;
+            var blueNoiseSampleScreenCoord: vec2<u32> = vec2<u32>(
+                (u32(origScreenCoord.x) + iOffsetX) % u32(defaultUniformBuffer.miScreenWidth),
+                (u32(origScreenCoord.y) + iOffsetY) % u32(defaultUniformBuffer.miScreenHeight)
+            );
+
+            let blueNoise: vec4f = textureLoad(
+                blueNoiseTexture,
+                blueNoiseSampleScreenCoord,
+                0);
+
             let ray: Ray = uniformSampling(
                 worldPosition.xyz,
                 normal.xyz,
@@ -369,7 +384,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let fPlaneD: f32 = -dot(worldPosition.xyz, normal.xyz);
 
     // permutation samples
-    let iNumPermutations: i32 = uniformData.miNumTemporalRestirSamplePermutations + 1;
+    let iNumPermutations: i32 = 0; //uniformData.miNumTemporalRestirSamplePermutations + 1;
     for(var iSample: i32 = 1; iSample < iNumPermutations; iSample++)
     {
         var aXOR: array<vec2<i32>, 4>;
@@ -385,7 +400,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         aOffsets[3] = vec2<i32>(1, -1);
 
         // apply permutation offset to screen coordinate, converting to uv after
-        let iFrame: i32 = i32(defaultUniformData.miFrame);
+        let iFrame: i32 = i32(defaultUniformBuffer.miFrame);
         let iIndex0: i32 = iFrame & 3;
         let iIndex1: i32 = (iSample + (iFrame ^ 1)) & 3;
         let offset: vec2<i32> = aOffsets[iIndex0] + aOffsets[iIndex1];
@@ -396,8 +411,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
         // permutation uv
         var sampleUV: vec2<f32> = vec2<f32>(
-            ceil(f32(screenCoord.x) + 0.5f) / f32(defaultUniformData.miScreenWidth),
-            ceil(f32(screenCoord.y) + 0.5f) / f32(defaultUniformData.miScreenHeight));
+            ceil(f32(screenCoord.x) + 0.5f) / f32(defaultUniformBuffer.miScreenWidth),
+            ceil(f32(screenCoord.y) + 0.5f) / f32(defaultUniformBuffer.miScreenHeight));
 
         // get sample world position, normal, and ray direction
         var fJacobian: f32 = 1.0f;
@@ -536,8 +551,59 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     out.hitPosition.w = ambientOcclusionSample.x;
     out.hitNormal.w = ambientOcclusionSample.y;
 
+/*
+    let textureSize: vec2<u32> = textureDimensions(worldPositionTexture);
+    let screenImageCoord: vec2<u32> = vec2<u32>(
+        u32(in.uv.x * f32(textureSize.x)),
+        u32(in.uv.y * f32(textureSize.y))
+    );
+    let worldPosition: vec4<f32> = textureLoad(
+        worldPositionTexture,
+        screenImageCoord,
+        0);
+    if(worldPosition.w <= 0.0f)
+    {
+        out.radianceOutput = vec4<f32>(0.0f, 0.0f, 0.3f, 0.0f);
+    }
+    else 
+    {
+        out.radianceOutput = vec4<f32>(testDirectLighting(in.uv), 1.0f);
+    }
+*/
     return out;
 }
+
+///// 
+fn testDirectLighting(uv: vec2<f32>) -> vec3<f32>
+{
+    let textureSize: vec2<u32> = textureDimensions(worldPositionTexture);
+
+    let screenImageCoord: vec2<u32> = vec2<u32>(
+        u32(uv.x * f32(textureSize.x)),
+        u32(uv.y * f32(textureSize.y))
+    );
+    let worldPosition: vec4<f32> = textureLoad(
+        worldPositionTexture,
+        screenImageCoord,
+        0
+    );
+
+    let rayDirection = normalize(vec3<f32>(1.0f, 1.0f, 1.0f));
+
+    var ray: Ray;
+    ray.mOrigin = vec4<f32>(worldPosition.xyz + rayDirection * 0.01f, 1.0f);
+    ray.mDirection = vec4<f32>(defaultUniformBuffer.mLightDirection.xyz, 1.0f);
+
+    var ret: vec3<f32> = vec3<f32>(1.0f, 1.0f, 1.0f);
+    var intersectionInfo: IntersectBVHResult = intersectBVH4(ray, 0u);
+    if(intersectionInfo.miHitTriangle != UINT32_MAX)
+    {
+        ret = vec3<f32>(0.0f, 0.0f, 0.0f);
+    }
+
+    return ret;
+}
+
 
 /////
 fn temporalRestir(
@@ -613,17 +679,6 @@ fn temporalRestir(
     ray.mOrigin = vec4<f32>(worldPosition + rayDirection * 0.01f, 1.0f);
     ray.mDirection = vec4<f32>(rayDirection, 1.0f);
 
-    //let intersectionInfo: IntersectBVHResult = intersectBVH(ray);
-    //var intersectionInfo: IntersectBVHResult;
-    //for(var iMeshNodeIndex: u32 = bvhProcessInfo.miStartNodeIndex; iMeshNodeIndex <= bvhProcessInfo.miEndNodeIndex; iMeshNodeIndex++)
-    //{
-    //    intersectionInfo = intersectBVH2(ray, iMeshNodeIndex);
-    //    if(intersectionInfo.miHitTriangle != UINT32_MAX)
-    //    {
-    //        break;
-    //    }
-    //}
-    //let intersectionInfo: IntersectBVHResult = intersectBVH3(ray, 0u);
     var intersectionInfo: IntersectBVHResult;
     if(bTraceRay)
     {
@@ -659,11 +714,13 @@ fn temporalRestir(
     var fDistanceAttenuation: f32 = 1.0f;
     if(intersectionInfo.miHitTriangle == UINT32_MAX)
     {
+        let skyTextureSize: vec2<u32> = textureDimensions(skyTexture);
+
         // didn't hit anything, use skylight
         let skyUV: vec2<f32> = octahedronMap2(ray.mDirection.xyz);
         let skyImageCoord: vec2<u32> = vec2<u32>(
-            u32(skyUV.x * f32(textureSize.x)),
-            u32(skyUV.y * f32(textureSize.y))
+            u32(skyUV.x * f32(skyTextureSize.x)),
+            u32(skyUV.y * f32(skyTextureSize.y))
         );
 
         candidateRadiance = textureLoad(
@@ -694,7 +751,7 @@ fn temporalRestir(
         }
 
         // get on-screen radiance if there's any
-        var clipSpacePosition: vec4<f32> = vec4<f32>(hitPosition, 1.0) * defaultUniformData.mViewProjectionMatrix;
+        var clipSpacePosition: vec4<f32> = vec4<f32>(hitPosition, 1.0) * defaultUniformBuffer.mViewProjectionMatrix;
         clipSpacePosition.x /= clipSpacePosition.w;
         clipSpacePosition.y /= clipSpacePosition.w;
         clipSpacePosition.z /= clipSpacePosition.w;
@@ -711,7 +768,7 @@ fn temporalRestir(
             worldPositionTexture,
             imageCoord,
             0);
-        var hitPositionClipSpace: vec4<f32> = vec4<f32>(worldSpaceHitPosition.xyz, 1.0f) * defaultUniformData.mViewProjectionMatrix;
+        var hitPositionClipSpace: vec4<f32> = vec4<f32>(worldSpaceHitPosition.xyz, 1.0f) * defaultUniformBuffer.mViewProjectionMatrix;
         hitPositionClipSpace.x /= hitPositionClipSpace.w;
         hitPositionClipSpace.y /= hitPositionClipSpace.w;
         hitPositionClipSpace.z /= hitPositionClipSpace.w;
@@ -779,7 +836,7 @@ fn temporalRestir(
     let fLuminance: f32 = computeLuminance(
         ToneMapFilmic_Hejl2015(
             candidateRadiance.xyz, 
-            max(max(defaultUniformData.mLightRadiance.x, defaultUniformData.mLightRadiance.y), defaultUniformData.mLightRadiance.z)
+            max(max(defaultUniformBuffer.mLightRadiance.x, defaultUniformBuffer.mLightRadiance.y), defaultUniformBuffer.mLightRadiance.z)
         )
     );
 
@@ -1030,7 +1087,7 @@ fn rayTriangleIntersection(
         rayPt1, 
         triNormal, 
         fPlaneDistance);
-    if(fT < 0.0f)
+    if(fT < -0.01f)
     {
         ret.mIntersectPosition = vec3<f32>(FLT_MAX, FLT_MAX, FLT_MAX);
         return ret;
@@ -1130,8 +1187,8 @@ fn isDisoccluded(
         0
     );
 
-    var fOneOverScreenHeight: f32 = 1.0f / f32(defaultUniformData.miScreenHeight);
-    var fOneOverScreenWidth: f32 = 1.0f / f32(defaultUniformData.miScreenWidth);
+    var fOneOverScreenHeight: f32 = 1.0f / f32(defaultUniformBuffer.miScreenHeight);
+    var fOneOverScreenWidth: f32 = 1.0f / f32(defaultUniformBuffer.miScreenWidth);
 
     var bestBackProjectedScreenUV: vec2<f32> = backProjectedScreenUV;
     var fShortestWorldDistance: f32 = FLT_MAX;
@@ -1322,13 +1379,13 @@ fn intersectTri4(
     ray: Ray,
     iTriangleIndex: u32) -> RayTriangleIntersectionResult
 {
-    //let iIndex0: u32 = aiSceneTriangleIndices[iTriangleIndex * 3];
-    //let iIndex1: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 1];
-    //let iIndex2: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 2];
+    let iIndex0: u32 = aiSceneTriangleIndices[iTriangleIndex * 3];
+    let iIndex1: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 1];
+    let iIndex2: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 2];
 
-    let pos0: vec4<f32> = aSceneVertexPositions[aiSceneTriangleIndices[iTriangleIndex * 3]].mPosition;
-    let pos1: vec4<f32> = aSceneVertexPositions[aiSceneTriangleIndices[iTriangleIndex * 3 + 1]].mPosition;
-    let pos2: vec4<f32> = aSceneVertexPositions[aiSceneTriangleIndices[iTriangleIndex * 3 + 2]].mPosition;
+    let pos0: vec4<f32> = aSceneVertexPositions[iIndex0].mPosition;
+    let pos1: vec4<f32> = aSceneVertexPositions[iIndex1].mPosition;
+    let pos2: vec4<f32> = aSceneVertexPositions[iIndex2].mPosition;
 
     var iIntersected: u32 = 0;
     var fT: f32 = FLT_MAX;
@@ -1357,7 +1414,7 @@ fn intersectBVH4(
     ret.miHitTriangle = UINT32_MAX;
     var fClosestDistance: f32 = FLT_MAX;
 
-    for(var iStep: u32 = 0u; iStep < 10000u; iStep++)
+    for(var iStep: u32 = 0u; iStep < 100u; iStep++)
     {
         if(iStackTop < 0)
         {
@@ -1427,7 +1484,6 @@ fn getPreviousScreenUV(
         motionVectorTexture,
         screenImageCoord,
         0).xy;
-    motionVector = motionVector * 2.0f - 1.0f;
     var prevScreenUV: vec2<f32> = screenUVCopy - motionVector;
 
     var worldPosition: vec3<f32> = textureLoad(
@@ -1441,8 +1497,8 @@ fn getPreviousScreenUV(
         0
     ).xyz;
 
-    var fOneOverScreenWidth: f32 = 1.0f / f32(defaultUniformData.miScreenWidth);
-    var fOneOverScreenHeight: f32 = 1.0f / f32(defaultUniformData.miScreenHeight);
+    var fOneOverScreenWidth: f32 = 1.0f / f32(defaultUniformBuffer.miScreenWidth);
+    var fOneOverScreenHeight: f32 = 1.0f / f32(defaultUniformBuffer.miScreenHeight);
 
     var fShortestWorldDistance: f32 = FLT_MAX;
     var closestScreenUV: vec2<f32> = prevScreenUV;
@@ -1633,7 +1689,7 @@ fn checkClipSpaceBlock(
     for(var iStep: i32 = 0; iStep < iNumBlockSteps; iStep++)
     {
         // convert to clipspace for fetching world position from texture
-        var clipSpacePosition: vec4<f32> = vec4<f32>(currCheckPosition, 1.0f) * defaultUniformData.mViewProjectionMatrix;
+        var clipSpacePosition: vec4<f32> = vec4<f32>(currCheckPosition, 1.0f) * defaultUniformBuffer.mViewProjectionMatrix;
         clipSpacePosition.x /= clipSpacePosition.w;
         clipSpacePosition.y /= clipSpacePosition.w;
         clipSpacePosition.z /= clipSpacePosition.w;
@@ -1644,8 +1700,8 @@ fn checkClipSpaceBlock(
             1.0f - (clipSpacePosition.y * 0.5f + 0.5f)
         );
 
-        currScreenPosition.x = i32(currScreenUV.x * f32(defaultUniformData.miScreenWidth));
-        currScreenPosition.y = i32(currScreenUV.y * f32(defaultUniformData.miScreenHeight));
+        currScreenPosition.x = i32(currScreenUV.x * f32(defaultUniformBuffer.miScreenWidth));
+        currScreenPosition.y = i32(currScreenUV.y * f32(defaultUniformBuffer.miScreenHeight));
 
         // only check the surrounding pixel 
         if(abs(currScreenPosition.x - startScreenPosition.x) > 6 || abs(currScreenPosition.y - startScreenPosition.y) > 6)
@@ -1654,8 +1710,8 @@ fn checkClipSpaceBlock(
         }
 
         // out of bounds
-        if(currScreenPosition.x < 0 || currScreenPosition.x >= i32(defaultUniformData.miScreenWidth) || 
-            currScreenPosition.y < 0 || currScreenPosition.y >= i32(defaultUniformData.miScreenHeight))
+        if(currScreenPosition.x < 0 || currScreenPosition.x >= i32(defaultUniformBuffer.miScreenWidth) || 
+            currScreenPosition.y < 0 || currScreenPosition.y >= i32(defaultUniformBuffer.miScreenHeight))
         {
             continue;
         }
