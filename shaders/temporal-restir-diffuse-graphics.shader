@@ -376,10 +376,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         }
         //out.rayDirection = vec4<f32>(sampleRayDirection.xyz, fIntersection);
         out.sampleRayHitPosition = vec4<f32>(result.mIntersectionResult.mHitPosition, fIntersection);
-        //out.sampleRayDirection = vec4<f32>(sampleRayDirection, fIntersection);
-    
-out.sampleRayHitPosition = vec4<f32>(sampleRayDirection.xyz, fIntersection);
-    
+        out.sampleRayDirection = vec4<f32>(sampleRayDirection, fIntersection);
     }
 
     var firstResult: TemporalRestirResult = result;
