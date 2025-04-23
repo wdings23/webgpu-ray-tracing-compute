@@ -329,11 +329,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         {
             
 
-            let iOffsetX: u32 = u32(defaultUniformBuffer.miFrame) % blueNoiseTextureSize.x;
-            let iOffsetY: u32 = (u32(defaultUniformBuffer.miFrame) / blueNoiseTextureSize.y) % blueNoiseTextureSize.y;
+            var iOffsetX: u32 = u32(defaultUniformBuffer.miFrame) % blueNoiseTextureSize.x;
+            var iOffsetY: u32 = (u32(defaultUniformBuffer.miFrame) / blueNoiseTextureSize.y) % blueNoiseTextureSize.y;
             var blueNoiseSampleScreenCoord: vec2<u32> = vec2<u32>(
-                (u32(origScreenCoord.x) + iOffsetX) % u32(defaultUniformBuffer.miScreenWidth),
-                (u32(origScreenCoord.y) + iOffsetY) % u32(defaultUniformBuffer.miScreenHeight)
+                ((u32(origScreenCoord.x) + iOffsetX) % u32(blueNoiseTextureSize.x)),
+                ((u32(origScreenCoord.y) + iOffsetY) % u32(blueNoiseTextureSize.y))
             );
 
             let blueNoise: vec4f = textureLoad(
@@ -377,6 +377,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         //out.rayDirection = vec4<f32>(sampleRayDirection.xyz, fIntersection);
         out.sampleRayHitPosition = vec4<f32>(result.mIntersectionResult.mHitPosition, fIntersection);
         //out.sampleRayDirection = vec4<f32>(sampleRayDirection, fIntersection);
+    
+out.sampleRayHitPosition = vec4<f32>(sampleRayDirection.xyz, fIntersection);
+    
     }
 
     var firstResult: TemporalRestirResult = result;
