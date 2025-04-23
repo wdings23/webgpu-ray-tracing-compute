@@ -383,8 +383,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     let fPlaneD: f32 = -dot(worldPosition.xyz, normal.xyz);
 
+/*
     // permutation samples
-    let iNumPermutations: i32 = 0; //uniformData.miNumTemporalRestirSamplePermutations + 1;
+    let iNumPermutations: i32 = uniformData.miNumTemporalRestirSamplePermutations + 1;
     for(var iSample: i32 = 1; iSample < iNumPermutations; iSample++)
     {
         var aXOR: array<vec2<i32>, 4>;
@@ -529,7 +530,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     {
         result = firstResult;
     }
-    
+*/
+
     result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
 
     var fReservoirWeight: f32 = result.mReservoir.w;
@@ -1087,7 +1089,7 @@ fn rayTriangleIntersection(
         rayPt1, 
         triNormal, 
         fPlaneDistance);
-    if(fT < -0.01f)
+    if(fT <= 0.0f)
     {
         ret.mIntersectPosition = vec3<f32>(FLT_MAX, FLT_MAX, FLT_MAX);
         return ret;
