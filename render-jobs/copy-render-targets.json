@@ -79,6 +79,28 @@
             "ParentJobName": "Diffuse Temporal Restir Graphics",
             "ParentName": "Hit Normal Output",
             "Format": "rgba16float"
+        },
+
+        {
+            "Name": "Previous Spherical Harmonics 0 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Diffuse Graphics",
+            "ParentName": "Spherical Harmonics 0 Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Spherical Harmonics 1 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Diffuse Graphics",
+            "ParentName": "Spherical Harmonics 1 Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Spherical Harmonics 2 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Diffuse Graphics",
+            "ParentName": "Spherical Harmonics 2 Output",
+            "Format": "rgba32float"
         }
     ]
 }

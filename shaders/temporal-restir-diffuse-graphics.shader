@@ -383,9 +383,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     var firstResult: TemporalRestirResult = result;
 
     let fPlaneD: f32 = -dot(worldPosition.xyz, normal.xyz);
-/*
+
     // permutation samples
-    let iNumPermutations: i32 = uniformData.miNumTemporalRestirSamplePermutations + 1;
+    let iNumPermutations: i32 = 5; //uniformData.miNumTemporalRestirSamplePermutations + 1;
     for(var iSample: i32 = 1; iSample < iNumPermutations; iSample++)
     {
         var aXOR: array<vec2<i32>, 4>;
@@ -423,7 +423,6 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
                 motionVectorTexture,
                 screenCoord,
                 0).xy;
-            motionVector = motionVector * 2.0f - 1.0f;
             sampleUV -= motionVector;
 
             // sample world position
@@ -530,7 +529,6 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     {
         result = firstResult;
     }
-*/
 
     result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
 
@@ -1158,8 +1156,6 @@ fn isDisoccluded(
         motionVectorTexture,
         inputScreenCoord,
         0);
-    motionVector.x = motionVector.x * 2.0f - 1.0f;
-    motionVector.y = motionVector.y * 2.0f - 1.0f;
     
     let iMesh: u32 = u32(ceil(motionVector.z - 0.5f)) - 1;
 

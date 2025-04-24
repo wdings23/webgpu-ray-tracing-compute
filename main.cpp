@@ -27,8 +27,8 @@ wgpu::RenderPipeline pipeline;
 
 wgpu::Surface surface;
 wgpu::TextureFormat format;
-const uint32_t kWidth = 1024;
-const uint32_t kHeight = 1024;
+const uint32_t kWidth = 512;
+const uint32_t kHeight = 512;
 
 struct UniformData
 {
