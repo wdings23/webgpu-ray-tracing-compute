@@ -65,9 +65,12 @@ var motionVectorTexture: texture_2d<f32>;
 var prevMotionVectorTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var sampleRadianceTexture: texture_2d<f32>;
 
 @group(1) @binding(1)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(2)
 var textureSampler: sampler;
 
 struct SHOutput 
@@ -134,6 +137,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     );
     let rayDirection = normalize(hitPosition.xyz - worldPosition.xyz);
 
+    let sampleRadiance: vec4<f32> = textureSample(
+        sampleRadianceTexture,
+        textureSampler,
+        in.uv
+    );
     let sampleRayDirection: vec4<f32> = textureSample(
         sampleRayDirectionTexture,
         textureSampler,
@@ -156,7 +164,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         u32(prevScreenUV.y * f32(textureSize.y))
     );
 
-    let shOutput: SHOutput = encodeSphericalHarmonics(
+    var shOutput: SHOutput = encodeSphericalHarmonics(
+        sampleRadiance.xyz,
+        sampleRayDirection.xyz,
+        screenCoord,
+        prevScreenCoord
+    );
+
+    shOutput = encodeSphericalHarmonics(
         radiance.xyz,
         rayDirection.xyz,
         screenCoord,

@@ -751,6 +751,12 @@ namespace Render
                     bindingLayout.texture.multisampled = false;
                     bindingLayout.texture.sampleType = wgpu::TextureSampleType::Float;
                     bindingLayout.texture.viewDimension = wgpu::TextureViewDimension::e2D;
+
+// temp for now
+if(uniformName == "sampleRadianceTexture")
+{
+    bindingLayout.texture.sampleType = wgpu::TextureSampleType::UnfilterableFloat;
+}
                 }
 
                 bindGroupEntry.textureView = mUniformTextures[uniformName].CreateView();
