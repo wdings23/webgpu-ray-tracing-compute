@@ -843,7 +843,7 @@ namespace Render
     */
     void CRenderer::draw(DrawUpdateDescriptor& desc)
     {
-        static float3 sLightDirection = normalize(float3(1.0f, 0.4f, 0.0f));
+        static float3 sLightDirection = normalize(float3(1.0f, 1.0f, 0.0f));
 
         DefaultUniformData defaultUniformData;
         defaultUniformData.mViewMatrix = *desc.mpViewMatrix;

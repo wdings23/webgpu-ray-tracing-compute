@@ -3,6 +3,7 @@ const FLT_MAX: f32 = 1.0e+10;
 const PI: f32 = 3.14159f;
 const PROBE_IMAGE_SIZE: u32 = 8u;
 const VALIDATION_STEP: u32 = 16u;
+const RAY_LENGTH: f32 = 10.0f;
 
 struct RandomResult 
 {
@@ -327,8 +328,6 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     {
         var sampleRayDirection: vec3f = vec3f(0.0f, 0.0f, 0.0f);
         {
-            
-
             var iOffsetX: u32 = u32(defaultUniformBuffer.miFrame) % blueNoiseTextureSize.x;
             var iOffsetY: u32 = (u32(defaultUniformBuffer.miFrame) / blueNoiseTextureSize.y) % blueNoiseTextureSize.y;
             var blueNoiseSampleScreenCoord: vec2<u32> = vec2<u32>(
@@ -349,12 +348,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             sampleRayDirection = ray.mDirection.xyz;
         }
 
+        var rayOrigin: vec3<f32> = worldPosition.xyz;
+
         // restir
         result.mIntersectionResult.miHitTriangle = UINT32_MAX;
         result = temporalRestir(
             result,
 
-            worldPosition.xyz,
+            rayOrigin,
             normal,
             in.uv,
             sampleRayDirection,
@@ -382,7 +383,6 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     var firstResult: TemporalRestirResult = result;
 
     let fPlaneD: f32 = -dot(worldPosition.xyz, normal.xyz);
-
 /*
     // permutation samples
     let iNumPermutations: i32 = uniformData.miNumTemporalRestirSamplePermutations + 1;
@@ -522,11 +522,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     // intersection check to see if the neighbor's ray direction is blocked
     var ray: Ray;
     ray.mDirection = vec4<f32>(result.mRayDirection.xyz, 1.0f);
-    ray.mOrigin = vec4<f32>(worldPosition.xyz + ray.mDirection.xyz * 0.01f, 1.0f);
+    ray.mOrigin = vec4<f32>(worldPosition.xyz, 1.0f);
     var intersectionInfo: IntersectBVHResult;
     intersectionInfo = intersectBVH4(ray, 0u);
-    if((length(result.mHitPosition.xyz) >= 1000.0f && abs(intersectionInfo.mHitPosition.x) < 1000.0f) || 
-       (length(result.mHitPosition.xyz) < 1000.0f && abs(intersectionInfo.mHitPosition.x) >= 1000.0f))
+    if((length(result.mHitPosition.xyz) >= RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) < RAY_LENGTH) || 
+       (length(result.mHitPosition.xyz) < RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) >= RAY_LENGTH))
     {
         result = firstResult;
     }
@@ -552,6 +552,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     
     out.hitPosition.w = ambientOcclusionSample.x;
     out.hitNormal.w = ambientOcclusionSample.y;
+    out.sampleRayDirection.w = fAO;
 
 /*
     let textureSize: vec2<u32> = textureDimensions(worldPositionTexture);
@@ -592,8 +593,10 @@ fn testDirectLighting(uv: vec2<f32>) -> vec3<f32>
 
     let rayDirection = normalize(vec3<f32>(1.0f, 1.0f, 1.0f));
 
+    var origin: vec3<f32> = worldPosition.xyz + rayDirection * 0.001f;
+
     var ray: Ray;
-    ray.mOrigin = vec4<f32>(worldPosition.xyz + rayDirection * 0.01f, 1.0f);
+    ray.mOrigin = vec4<f32>(origin, 1.0f);
     ray.mDirection = vec4<f32>(defaultUniformBuffer.mLightDirection.xyz, 1.0f);
 
     var ret: vec3<f32> = vec3<f32>(1.0f, 1.0f, 1.0f);
@@ -704,7 +707,7 @@ fn temporalRestir(
         );
 
         intersectionInfo.miHitTriangle = u32(floor(candidateHitPosition.w));
-        if(length(candidateHitPosition.xyz) >= 1000.0f)
+        if(length(candidateHitPosition.xyz) >= RAY_LENGTH)
         {
             intersectionInfo.miHitTriangle = UINT32_MAX;
         }
@@ -1385,15 +1388,15 @@ fn intersectTri4(
     let iIndex1: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 1];
     let iIndex2: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 2];
 
-    let pos0: vec4<f32> = aSceneVertexPositions[iIndex0].mPosition;
-    let pos1: vec4<f32> = aSceneVertexPositions[iIndex1].mPosition;
-    let pos2: vec4<f32> = aSceneVertexPositions[iIndex2].mPosition;
+    var pos0: vec4<f32> = aSceneVertexPositions[iIndex0].mPosition;
+    var pos1: vec4<f32> = aSceneVertexPositions[iIndex1].mPosition;
+    var pos2: vec4<f32> = aSceneVertexPositions[iIndex2].mPosition;
 
     var iIntersected: u32 = 0;
     var fT: f32 = FLT_MAX;
     let intersectionInfo: RayTriangleIntersectionResult = rayTriangleIntersection(
         ray.mOrigin.xyz,
-        ray.mOrigin.xyz + ray.mDirection.xyz * 1000.0f,
+        ray.mOrigin.xyz + ray.mDirection.xyz * RAY_LENGTH,
         pos0.xyz,
         pos1.xyz,
         pos2.xyz);
@@ -1409,14 +1412,14 @@ fn intersectBVH4(
     var ret: IntersectBVHResult;
 
     var iStackTop: i32 = 0;
-    var aiStack: array<u32, 128>;
+    var aiStack: array<u32, 32>;
     aiStack[iStackTop] = iRootNodeIndex;
 
     ret.mHitPosition = vec3<f32>(FLT_MAX, FLT_MAX, FLT_MAX);
     ret.miHitTriangle = UINT32_MAX;
     var fClosestDistance: f32 = FLT_MAX;
 
-    for(var iStep: u32 = 0u; iStep < 100u; iStep++)
+    for(var iStep: u32 = 0u; iStep < 1000u; iStep++)
     {
         if(iStackTop < 0)
         {
@@ -1433,7 +1436,7 @@ fn intersectBVH4(
                 ray,
                 aSceneBVHNodes[iNodeIndex].miPrimitiveID);
 
-            if(abs(intersectionInfo.mIntersectPosition.x) < 10000.0f)
+            if(abs(intersectionInfo.mIntersectPosition.x) < RAY_LENGTH)
             {
                 let fDistanceToEye: f32 = length(intersectionInfo.mIntersectPosition.xyz - ray.mOrigin.xyz);
                 //if(fDistanceToEye < fClosestDistance)
