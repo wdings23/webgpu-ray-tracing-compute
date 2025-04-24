@@ -226,6 +226,11 @@ namespace Render
             mSwapChainRenderJobName = szRenderJobName;
             mSwapChainAttachmentName = szOutputAttachmentName;
         }
+
+        void loadExternalData();
+        void loadBVH();
+        void loadFont();
+        void loadTexturesIntoAtlas();
     };
 
 }   // Render

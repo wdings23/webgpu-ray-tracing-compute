@@ -300,640 +300,10 @@ namespace Render
 
         mpSampler = desc.mpSampler;
 
-        struct TextureAtlasInfo
-        {
-            uint2               miTextureCoord;
-            float2              mUV;
-            uint32_t            miTextureID;
-            uint32_t            miImageWidth;
-            uint32_t            miImageHeight;
-            uint32_t            miPadding0;
-        };
-
-        std::vector<TextureAtlasInfo> aTextureAtlasInfo;
-        std::vector<std::string> aDiffuseTextureNames;
-        std::vector<std::string> aEmissiveTextureNames;
-        std::vector<std::string> aSpecularTextureNames;
-        std::vector<std::string> aNormalTextureNames;
-        {
-            // diffuse texture atlas
-            int32_t iAtlasImageWidth = 8192;
-            int32_t iAtlasImageHeight = 8192;
-            wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
-            wgpu::TextureDescriptor textureDesc = {};
-            textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-            textureDesc.dimension = wgpu::TextureDimension::e2D;
-            textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-            textureDesc.mipLevelCount = 1;
-            textureDesc.sampleCount = 1;
-            textureDesc.size.depthOrArrayLayers = 1;
-            textureDesc.size.width = iAtlasImageWidth;
-            textureDesc.size.height = iAtlasImageHeight;
-            textureDesc.viewFormatCount = 1;
-            textureDesc.viewFormats = aViewFormats;
-
-            maTextures["totalDiffuseTextures"] = device.CreateTexture(&textureDesc);
-            mDiffuseTextureAtlas = maTextures["totalDiffuseTextures"];
-
-
-#if defined(__EMSCRIPTEN__)
-            char* acTextureNames = nullptr;
-            uint32_t iSize = Loader::loadFile(&acTextureNames, desc.mMeshFilePath + "-texture-names.tex");
-            if(iSize > 0)
-#else 
-            std::vector<char> acTextureNames;
-            Loader::loadFile(acTextureNames, desc.mMeshFilePath + "-texture-names.tex");
-            if(acTextureNames.size() > 0)
-#endif // __EMSCRIPTEN__
-            {
-                uint32_t iDiffuseSignature = ('D') | ('F' << 8) | ('S' << 16) | ('E' << 24);
-                uint32_t iEmissiveSignature = ('E') | ('M' << 8) | ('S' << 16) | ('V' << 24);
-                uint32_t iSpecularSignature = ('S') | ('P' << 8) | ('C' << 16) | ('L' << 24);
-                uint32_t iNormalSignature = ('N') | ('R' << 8) | ('M' << 16) | ('L' << 24);
-
-#if defined(__EMSCRIPTEN__)
-                uint32_t const* piData = (uint32_t const*)acTextureNames;
-                char const* pcEnd = ((char const*)piData) + iSize;
-#else 
-                uint32_t const* piData = (uint32_t const*)acTextureNames.data();
-                char const* pcEnd = ((char const*)piData) + acTextureNames.size();
-#endif // __EMSCRIPTEN__
-                for(uint32_t iType = 0; iType < 4; iType++)
-                {
-                    uint32_t iSignature = *piData++;
-                    uint32_t iNumTextures = *piData++;
-                    char const* pcChar = (char const*)piData;
-                    for(uint32_t i = 0; i < iNumTextures; i++)
-                    {
-                        std::vector<char> acName;
-                        while(*pcChar != '\0')
-                        {
-                            acName.push_back(*pcChar++);
-                        }
-                        acName.push_back(*pcChar++);
-
-                        std::string convertedName = std::string(acName.data());
-                        auto iter = convertedName.rfind("/");
-                        if(iter == std::string::npos)
-                        {
-                            iter = convertedName.rfind("\\");
-                        }
-
-                        std::string baseName = convertedName;
-                        if(iter != std::string::npos)
-                        {
-                            baseName = convertedName.substr(iter);
-                        }
-                        iter = baseName.rfind(".");
-                        std::string noExtension = baseName.substr(0, iter);
-                        std::string oldFileExtension = baseName.substr(iter);
-
-                        if(oldFileExtension != ".jpeg" && oldFileExtension != ".png" && oldFileExtension != ".jpg")
-                        {
-                            noExtension += ".png";
-                        }
-                        else
-                        {
-                            noExtension += oldFileExtension;
-                        }
-
-                        if(iSignature == iDiffuseSignature)
-                        {
-                            aDiffuseTextureNames.push_back(noExtension);
-                        }
-                        else if(iSignature == iEmissiveSignature)
-                        {
-                            aEmissiveTextureNames.push_back(noExtension);
-                        }
-                        else if(iSignature == iSpecularSignature)
-                        {
-                            aSpecularTextureNames.push_back(noExtension);
-                        }
-                        else if(iSignature == iNormalSignature)
-                        {
-                            aNormalTextureNames.push_back(noExtension);
-                        }
-                    }
-                    piData = (uint32_t const*)pcChar;
-                    if(pcChar == pcEnd)
-                    {
-                        break;
-                    }
-
-                }   // for texture type
-
-#if defined(__EMSCRIPTEN__)
-                free(acTextureNames);
-#endif // __EMSCRIPTEN__
-
-                int32_t iAtlasIndex = 0;
-                int32_t iX = 0, iY = 0;
-                int32_t iLargestHeight = 0;
-
-                auto copyToAtlas = [&](
-                    int32_t& iX,
-                    int32_t& iY,
-                    int32_t iAtlasImageWidth,
-                    int32_t iAtlasImageHeight,
-                    std::string const& textureName,
-                    wgpu::Texture& textureAtlas,
-                    int32_t& iLargestHeight)
-                    {
-                        std::string parsedTextureName = std::string("textures/") + textureName;
-
-#if defined(__EMSCRIPTEN__)
-                        char* acTextureImageData = nullptr;
-                        uint32_t iSize = Loader::loadFile(&acTextureImageData, parsedTextureName);
-                        int32_t iImageWidth = 0, iImageHeight = 0, iImageComp = 0;
-                        stbi_uc* pImageData = stbi_load_from_memory(
-                            (stbi_uc const*)acTextureImageData,
-                            (int32_t)iSize,
-                            &iImageWidth,
-                            &iImageHeight,
-                            &iImageComp,
-                            4
-                        );
-#else
-                        std::vector<char> acTextureImageData;
-                        Loader::loadFile(acTextureImageData, parsedTextureName);
-                        int32_t iImageWidth = 0, iImageHeight = 0, iImageComp = 0;
-                        stbi_uc* pImageData = stbi_load_from_memory(
-                            (stbi_uc const*)acTextureImageData.data(),
-                            (int32_t)acTextureImageData.size(),
-                            &iImageWidth,
-                            &iImageHeight,
-                            &iImageComp,
-                            4
-                        );
-#endif // __EMSCRIPTEN__
-
-                        if(pImageData)
-                        {
-                            iLargestHeight = std::max(iLargestHeight, iImageHeight);
-                            if(iX + iImageWidth >= iAtlasImageWidth)
-                            {
-                                iX = 0;
-                                iY += iLargestHeight;
-                                iLargestHeight = 0;
-                            }
-
-#if defined(__EMSCRIPTEN__)
-                            wgpu::TextureDataLayout layout = {};
-#else
-                            wgpu::TexelCopyBufferLayout layout = {};
-#endif // __EMSCRIPTEN__
-                            layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
-                            layout.offset = 0;
-                            layout.rowsPerImage = iImageHeight;
-                            wgpu::Extent3D extent = {};
-                            extent.depthOrArrayLayers = 1;
-                            extent.width = iImageWidth;
-                            extent.height = iImageHeight;
-
-#if defined(__EMSCRIPTEN__)
-                            wgpu::ImageCopyTexture destination = {};
-#else 
-                            wgpu::TexelCopyTextureInfo destination = {};
-#endif // __EMSCRIPTEN__
-                            destination.aspect = wgpu::TextureAspect::All;
-                            destination.mipLevel = 0;
-                            destination.origin = {.x = (uint32_t)iX, .y = (uint32_t)iY, .z = 0};
-                            destination.texture = textureAtlas;
-                            device.GetQueue().WriteTexture(
-                                &destination,
-                                pImageData,
-                                iImageWidth * iImageHeight * 4,
-                                &layout,
-                                &extent);
-
-                            TextureAtlasInfo info = {};
-                            info.miTextureCoord = uint2(iX, iY);
-                            info.miTextureID = iAtlasIndex;
-                            info.mUV = float2(float(iX) / float(iAtlasImageWidth), float(iY) / float(iAtlasImageHeight));
-                            info.miImageWidth = iImageWidth;
-                            info.miImageHeight = iImageHeight;
-                            aTextureAtlasInfo.push_back(info);
-
-                            iX += iImageWidth;
-
-                            stbi_image_free(pImageData);
-
-#if defined(__EMSCRIPTEN__)
-                            free(acTextureImageData);
-#endif // __EMSCRIPTEN__
-                        }
-                        else
-                        {
-                            DEBUG_PRINTF("!!! Can\'t load \"%s\"\n", parsedTextureName.c_str());
-                        }
-                    };
-
-
-                for(auto const& diffuseTextureName : aDiffuseTextureNames)
-                {
-                    copyToAtlas(iX, iY, iAtlasImageWidth, iAtlasImageHeight, diffuseTextureName, mDiffuseTextureAtlas, iLargestHeight);
-
-                    ++iAtlasIndex;
-                }
-
-            }
-
-        }   // textures
-
-        wgpu::TextureViewDescriptor viewDesc = {};
-        viewDesc.arrayLayerCount = 1;
-        viewDesc.aspect = wgpu::TextureAspect::All;
-        viewDesc.baseArrayLayer = 0;
-        viewDesc.baseMipLevel = 0;
-        viewDesc.dimension = wgpu::TextureViewDimension::e2D;
-        viewDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-        viewDesc.label = "Diffuse Texture Atlas";
-        viewDesc.mipLevelCount = 1;
-#if !defined(__EMSCRIPTEN__)
-        viewDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-#endif // __EMSCRIPTEN__
-        mDiffuseTextureAtlasView = mDiffuseTextureAtlas.CreateView(&viewDesc);
-
-        bufferDesc = {};
-        bufferDesc.mappedAtCreation = false;
-        bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
-        bufferDesc.size = std::max((uint32_t)sizeof(TextureAtlasInfo) * (uint32_t)aTextureAtlasInfo.size(), 64u);
-        maBuffers["diffuseTextureAtlasInfoBuffer"] = mpDevice->CreateBuffer(&bufferDesc);
-        maBuffers["diffuseTextureAtlasInfoBuffer"].SetLabel("Diffuse Texture Atlas Info Buffer");
-        device.GetQueue().WriteBuffer(
-            maBuffers["diffuseTextureAtlasInfoBuffer"],
-            0,
-            aTextureAtlasInfo.data(),
-            sizeof(TextureAtlasInfo) * (uint32_t)aTextureAtlasInfo.size()
-        );
-
-        // font atlas
-        {
-#if defined(__EMSCRIPTEN__)
-            char* acAtlasImageData = nullptr;
-            uint32_t iFileSize = Loader::loadFile(&acAtlasImageData, "font-atlas.png");
-#else 
-            std::vector<char> acAtlasImageDataV;
-            Loader::loadFile(acAtlasImageDataV, "font-atlas.png");
-            char* acAtlasImageData = acAtlasImageDataV.data();
-            uint32_t iFileSize = (uint32_t)acAtlasImageDataV.size();
-#endif // __EMSCRIPTEN__
-
-            int32_t iImageWidth = 0, iImageHeight = 0, iNumComp = 0;
-            stbi_uc* pImageData = stbi_load_from_memory(
-                (stbi_uc const*)acAtlasImageData,
-                (int32_t)iFileSize,
-                &iImageWidth,
-                &iImageHeight,
-                &iNumComp,
-                4
-            );
-
-            wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
-            wgpu::TextureDescriptor textureDesc = {};
-            textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-            textureDesc.dimension = wgpu::TextureDimension::e2D;
-            textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-            textureDesc.mipLevelCount = 1;
-            textureDesc.sampleCount = 1;
-            textureDesc.size.depthOrArrayLayers = 1;
-            textureDesc.size.width = iImageWidth;
-            textureDesc.size.height = iImageHeight;
-            textureDesc.viewFormatCount = 1;
-            textureDesc.viewFormats = aViewFormats;
-            maTextures["font-atlas-image"] = mpDevice->CreateTexture(&textureDesc);
-            maTextures["font-atlas-image"].SetLabel("Font Atlas");
-
-#if defined(__EMSCRIPTEN__)
-            wgpu::TextureDataLayout layout = {};
-#else
-            wgpu::TexelCopyBufferLayout layout = {};
-#endif // __EMSCRIPTEN__
-            layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
-            layout.offset = 0;
-            layout.rowsPerImage = iImageHeight;
-            wgpu::Extent3D extent = {};
-            extent.depthOrArrayLayers = 1;
-            extent.width = iImageWidth;
-            extent.height = iImageHeight;
-
-#if defined(__EMSCRIPTEN__)
-            wgpu::ImageCopyTexture destination = {};
-#else 
-            wgpu::TexelCopyTextureInfo destination = {};
-#endif // __EMSCRIPTEN__
-            destination.aspect = wgpu::TextureAspect::All;
-            destination.mipLevel = 0;
-            destination.origin = {.x = 0, .y = 0, .z = 0, };
-            destination.texture = maTextures["font-atlas-image"];
-            device.GetQueue().WriteTexture(
-                &destination,
-                pImageData,
-                iImageWidth * iImageHeight * 4,
-                &layout,
-                &extent);
-            stbi_image_free(pImageData);
-
-            wgpu::TextureViewDescriptor viewDesc = {};
-            viewDesc.arrayLayerCount = 1;
-            viewDesc.aspect = wgpu::TextureAspect::All;
-            viewDesc.baseArrayLayer = 0;
-            viewDesc.baseMipLevel = 0;
-            viewDesc.dimension = wgpu::TextureViewDimension::e2D;
-            viewDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-            viewDesc.label = "Font Texture Atlas";
-            viewDesc.mipLevelCount = 1;
-#if !defined(__EMSCRIPTEN__)
-            viewDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-#endif // __EMSCRIPTEN__
-            maTextureViews["font-atlas-image"] = maTextures["font-atlas-image"].CreateView(&viewDesc);
-
-#if defined(__EMSCRIPTEN__)
-            free(acAtlasImageData);
-#endif // __EMSCRIPTEN__
-
-#if defined(__EMSCRIPTEN__)
-            char* acFontInfoData = nullptr;
-            iFileSize = Loader::loadFile(&acFontInfoData, "glyph_info.bin");
-#else 
-            std::vector<char> acFontInfoDataV;
-            Loader::loadFile(acFontInfoDataV, "glyph_info.bin");
-            char* acFontInfoData = acFontInfoDataV.data();
-            iFileSize = (uint32_t)acFontInfoDataV.size();
-#endif // __EMSCRIPTEN__
-
-            bufferDesc.size = iFileSize;
-            bufferDesc.usage = (wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage);
-            maBuffers["font-info"] = mpDevice->CreateBuffer(&bufferDesc);
-            maBuffers["font-info"].SetLabel("Font Info Buffer");
-            mpDevice->GetQueue().WriteBuffer(maBuffers["font-info"], 0, acFontInfoData, iFileSize);
-
-            uint32_t iNumFontInfo = iFileSize / sizeof(OutputGlyphInfo);
-            maFontInfo.resize(iNumFontInfo);
-            memcpy(maFontInfo.data(), acFontInfoData, iFileSize);
-
-#if defined(__EMSCRIPTEN__)
-            free(acFontInfoData);
-#endif // __EMSCRIPTEN__
-
-            bufferDesc.size = sizeof(Vertex) * 4;
-            bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
-            maBuffers["quad-vertex-buffer"] = mpDevice->CreateBuffer(&bufferDesc);
-            maBuffers["quad-vertex-buffer"].SetLabel("Glyph Quad Vertex Buffer");
-
-            Vertex aVertices[4];
-            aVertices[0].mPosition = float4(-1.0f, 1.0f, 0.0f, 1.0f);
-            aVertices[1].mPosition = float4(-1.0f, -1.0f, 0.0f, 1.0f);
-            aVertices[2].mPosition = float4(1.0f, -1.0f, 0.0f, 1.0f);
-            aVertices[3].mPosition = float4(1.0f, 1.0f, 0.0f, 1.0f);
-            aVertices[0].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
-            aVertices[1].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
-            aVertices[2].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
-            aVertices[3].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
-            aVertices[0].mUV = float4(0.0f, 0.0f, 0.0f, 1.0f);
-            aVertices[1].mUV = float4(0.0f, 1.0f, 0.0f, 1.0f);
-            aVertices[2].mUV = float4(1.0f, 1.0f, 0.0f, 1.0f);
-            aVertices[3].mUV = float4(1.0f, 0.0f, 0.0f, 1.0f);
-            mpDevice->GetQueue().WriteBuffer(maBuffers["quad-vertex-buffer"], 0, aVertices, sizeof(aVertices));
-
-            bufferDesc.size = sizeof(uint32_t) * 6;
-            bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index;
-            maBuffers["quad-index-buffer"] = mpDevice->CreateBuffer(&bufferDesc);
-            maBuffers["quad-index-buffer"].SetLabel("Glyph Quad Index Buffer");
-
-            uint32_t aiIndices[6] = {0, 1, 2, 3, 2, 0};
-            mpDevice->GetQueue().WriteBuffer(maBuffers["quad-index-buffer"], 0, aiIndices, sizeof(aiIndices));
-
-            bufferDesc.size = 1024;
-            bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
-            maBuffers["glyph-coordinates"] = mpDevice->CreateBuffer(&bufferDesc);
-            maBuffers["glyph-coordinates"].SetLabel("Glyph Coordinates");
-
-            bufferDesc.size = 64;
-            bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
-            maBuffers["draw-text-uniform"] = mpDevice->CreateBuffer(&bufferDesc);
-            maBuffers["draw-text-uniform"].SetLabel("Draw Text Uniform Buffer");
-
-            setupFontPipeline();
-        }
-
-#if 0
-        {
-            wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA32Float};
-            wgpu::TextureDescriptor textureDesc = {};
-            textureDesc.usage = wgpu::TextureUsage::StorageBinding | wgpu::TextureUsage::TextureBinding;
-            textureDesc.dimension = wgpu::TextureDimension::e2D;
-            textureDesc.format = wgpu::TextureFormat::RGBA32Float;
-            textureDesc.mipLevelCount = 1;
-            textureDesc.sampleCount = 1;
-            textureDesc.size.depthOrArrayLayers = 1;
-            textureDesc.size.width = desc.miScreenWidth;
-            textureDesc.size.height = desc.miScreenHeight;
-            textureDesc.viewFormatCount = 1;
-            textureDesc.viewFormats = aViewFormats;
-            maTextures["sampleRadianceTexture"] = mpDevice->CreateTexture(&textureDesc);
-        }
-#endif // #if 0
-
-
-        // bvh
-        {
-            auto fileExtensionStart = desc.mMeshFilePath.rfind(".");
-            std::string baseName = desc.mMeshFilePath.substr(0, fileExtensionStart);
-            std::string bvhName = baseName + "-triangles.bvh";
-
-#if defined(__EMSCRIPTEN__)
-            char* acBVHData = nullptr;
-            uint32_t iFileSize = Loader::loadFile(&acBVHData, bvhName.c_str());
-#else
-            std::vector<char> acBVHDataVector;
-            Loader::loadFile(acBVHDataVector, bvhName);
-            char* acBVHData = acBVHDataVector.data();
-            uint32_t iFileSize = (uint32_t)acBVHDataVector.size();
-#endif // __EMSCRIPTEN__
-
-            bufferDesc.size = iFileSize;
-            bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
-            maBuffers["bvhNodes"] = mpDevice->CreateBuffer(&bufferDesc);
-            maBuffers["bvhNodes"].SetLabel("BVH Buffer");
-            mpDevice->GetQueue().WriteBuffer(maBuffers["bvhNodes"], 0, acBVHData, iFileSize);
-
-#if defined(__EMSCRIPTEN__)
-            free(acBVHData);
-#endif // __EMSCRIPTEN__
-        }
-
-        // external data from external-data.json
-        {
-            rapidjson::Document doc;
-
-#if defined(__EMSCRIPTEN__)
-            char* acFileContentBuffer = nullptr;
-            Loader::loadFile(
-                &acFileContentBuffer,
-                "render-jobs/" + desc.mRenderJobPipelineFilePath,
-                true
-            );
-
-            doc.Parse(acFileContentBuffer);
-            Loader::loadFileFree(acFileContentBuffer);
-#else 
-            std::vector<char> acFileContentBuffer;
-            Loader::loadFile(
-                acFileContentBuffer,
-                "render-jobs/external-data.json",
-                true
-            );
-
-            doc.Parse(acFileContentBuffer.data());
-#endif //__EMSCRIPTEN__
-
-            auto externalDataEntries = doc["External Data"].GetArray();
-            for(auto& externalDataEntry : externalDataEntries)
-            {
-                std::string name = externalDataEntry["Name"].GetString();
-                std::string type = externalDataEntry["Type"].GetString();
-
-                if(type == "Buffer")
-                {
-                    uint32_t iSize = 0;
-                    if(externalDataEntry.HasMember("Size"))
-                    {
-                        iSize = (uint32_t)externalDataEntry["Size"].GetUint();
-                    }
-
-                    bufferDesc = {};
-                    bufferDesc.size = iSize;
-                    bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
-                    maBuffers[name] = mpDevice->CreateBuffer(&bufferDesc);
-                    maBuffers[name].SetLabel(name.c_str());
-                }
-                else if(type == "Texture")
-                {
-                    std::string fileName = externalDataEntry["File"].GetString();
-
-#if defined(__EMSCRIPTEN__)
-                    char* acImageData = nullptr;
-                    uint32_t iFileSize = Loader::loadFile(&acImageData, fileName);
-#else
-                    std::vector<char> acBlueNoiseImageDataV;
-                    Loader::loadFile(acBlueNoiseImageDataV, fileName);
-                    char* acImageData = acBlueNoiseImageDataV.data();
-                    uint32_t iFileSize = (uint32_t)acBlueNoiseImageDataV.size();
-#endif // __EMSCRIPTEN__
-
-                    int32_t iImageWidth = 0, iImageHeight = 0, iNumComp = 0;
-                    stbi_uc* pImageData = stbi_load_from_memory((stbi_uc const*)acImageData, iFileSize, &iImageWidth, &iImageHeight, &iNumComp, 4);
-
-                    wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
-                    wgpu::TextureDescriptor textureDesc = {};
-                    textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-                    textureDesc.dimension = wgpu::TextureDimension::e2D;
-                    textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-                    textureDesc.mipLevelCount = 1;
-                    textureDesc.sampleCount = 1;
-                    textureDesc.size.depthOrArrayLayers = 1;
-                    textureDesc.size.width = iImageWidth;
-                    textureDesc.size.height = iImageHeight;
-                    textureDesc.viewFormatCount = 1;
-                    textureDesc.viewFormats = aViewFormats;
-                    maTextures[name] = mpDevice->CreateTexture(&textureDesc);
-
-#if defined(__EMSCRIPTEN__)
-                    wgpu::TextureDataLayout layout = {};
-#else
-                    wgpu::TexelCopyBufferLayout layout = {};
-#endif // __EMSCRIPTEN__
-                    layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
-                    layout.offset = 0;
-                    layout.rowsPerImage = iImageHeight;
-                    wgpu::Extent3D extent = {};
-                    extent.depthOrArrayLayers = 1;
-                    extent.width = iImageWidth;
-                    extent.height = iImageHeight;
-
-#if defined(__EMSCRIPTEN__)
-                    wgpu::ImageCopyTexture destination = {};
-#else 
-                    wgpu::TexelCopyTextureInfo destination = {};
-#endif // __EMSCRIPTEN__
-                    destination.aspect = wgpu::TextureAspect::All;
-                    destination.mipLevel = 0;
-                    destination.origin = {.x = 0, .y = 0, .z = 0};
-                    destination.texture = maTextures[name];
-                    device.GetQueue().WriteTexture(
-                        &destination,
-                        pImageData,
-                        iImageWidth* iImageHeight * 4,
-                        &layout,
-                        &extent);
-
-                    mpDevice->GetQueue().WriteTexture(
-                        &destination,
-                        pImageData,
-                        iImageWidth* iImageHeight * 4,
-                        &layout,
-                        &extent);
-                }
-                else if(type == "Render Target")
-                {
-                    wgpu::TextureDescriptor textureDesc = {};
-                    textureDesc.format = wgpu::TextureFormat::RGBA32Float;
-
-                    std::string format = externalDataEntry["Format"].GetString();
-                    if(format == "rgba32float")
-                    {
-                        textureDesc.format = wgpu::TextureFormat::RGBA32Float;
-                    }
-                    else if(format == "rgba16float")
-                    {
-                        textureDesc.format = wgpu::TextureFormat::RGBA16Float;
-                    }
-                    else if(format == "rg32float")
-                    {
-                        textureDesc.format = wgpu::TextureFormat::RG32Float;
-                    }
-                    else if(format == "r32float")
-                    {
-                        textureDesc.format = wgpu::TextureFormat::R32Float;
-                    }
-                    else
-                    {
-                        assert(!"not handled");
-                    }
-
-                    uint32_t iWidth = desc.miScreenWidth;
-                    uint32_t iHeight = desc.miScreenHeight;
-
-                    
-                    if(externalDataEntry.HasMember("ScaleWidth"))
-                    {
-                        float fScaleX = externalDataEntry["ScaleWidth"].GetFloat();
-                        iWidth = (uint32_t)(float(iWidth) * fScaleX);
-                    }
-                    if(externalDataEntry.HasMember("ScaleHeight"))
-                    {
-                        float fScaleY = externalDataEntry["ScaleHeight"].GetFloat();
-                        iHeight = (uint32_t)(float(iWidth) * fScaleY);
-                    }
-
-                    wgpu::TextureFormat aViewFormats[] = {textureDesc.format};
-                    
-                    textureDesc.usage = wgpu::TextureUsage::StorageBinding | wgpu::TextureUsage::TextureBinding;
-                    textureDesc.dimension = wgpu::TextureDimension::e2D;
-                    textureDesc.mipLevelCount = 1;
-                    textureDesc.sampleCount = 1;
-                    textureDesc.size.depthOrArrayLayers = 1;
-                    textureDesc.size.width = desc.miScreenWidth;
-                    textureDesc.size.height = desc.miScreenHeight;
-                    textureDesc.viewFormatCount = 1;
-                    textureDesc.viewFormats = aViewFormats;
-                    maTextures[name] = mpDevice->CreateTexture(&textureDesc);
-                }
-            }
-
-        }
-
+        loadTexturesIntoAtlas();
+        loadFont();
+        loadBVH();
+        loadExternalData();
 
         createRenderJobs(desc);
 
@@ -1966,6 +1336,646 @@ namespace Render
         wgpu::CommandBuffer commandBuffer = commandEncoder.Finish();
         aCommandBuffers.push_back(commandBuffer);
 
+    }
+
+    /*
+    **
+    */
+    // external data from external-data.json
+    void CRenderer::loadExternalData()
+    {
+        rapidjson::Document doc;
+
+#if defined(__EMSCRIPTEN__)
+        char* acFileContentBuffer = nullptr;
+        Loader::loadFile(
+            &acFileContentBuffer,
+            "render-jobs/" + desc.mRenderJobPipelineFilePath,
+            true
+        );
+
+        doc.Parse(acFileContentBuffer);
+        Loader::loadFileFree(acFileContentBuffer);
+#else 
+        std::vector<char> acFileContentBuffer;
+        Loader::loadFile(
+            acFileContentBuffer,
+            "render-jobs/external-data.json",
+            true
+        );
+
+        doc.Parse(acFileContentBuffer.data());
+#endif //__EMSCRIPTEN__
+
+        auto externalDataEntries = doc["External Data"].GetArray();
+        for(auto& externalDataEntry : externalDataEntries)
+        {
+            std::string name = externalDataEntry["Name"].GetString();
+            std::string type = externalDataEntry["Type"].GetString();
+
+            if(type == "Buffer")
+            {
+                uint32_t iSize = 0;
+                if(externalDataEntry.HasMember("Size"))
+                {
+                    iSize = (uint32_t)externalDataEntry["Size"].GetUint();
+                }
+
+                wgpu::BufferDescriptor bufferDesc = {};
+                bufferDesc.size = iSize;
+                bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
+                maBuffers[name] = mpDevice->CreateBuffer(&bufferDesc);
+                maBuffers[name].SetLabel(name.c_str());
+            }
+            else if(type == "Texture")
+            {
+                std::string fileName = externalDataEntry["File"].GetString();
+
+#if defined(__EMSCRIPTEN__)
+                char* acImageData = nullptr;
+                uint32_t iFileSize = Loader::loadFile(&acImageData, fileName);
+#else
+                std::vector<char> acBlueNoiseImageDataV;
+                Loader::loadFile(acBlueNoiseImageDataV, fileName);
+                char* acImageData = acBlueNoiseImageDataV.data();
+                uint32_t iFileSize = (uint32_t)acBlueNoiseImageDataV.size();
+#endif // __EMSCRIPTEN__
+
+                int32_t iImageWidth = 0, iImageHeight = 0, iNumComp = 0;
+                stbi_uc* pImageData = stbi_load_from_memory((stbi_uc const*)acImageData, iFileSize, &iImageWidth, &iImageHeight, &iNumComp, 4);
+
+                wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
+                wgpu::TextureDescriptor textureDesc = {};
+                textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+                textureDesc.dimension = wgpu::TextureDimension::e2D;
+                textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+                textureDesc.mipLevelCount = 1;
+                textureDesc.sampleCount = 1;
+                textureDesc.size.depthOrArrayLayers = 1;
+                textureDesc.size.width = iImageWidth;
+                textureDesc.size.height = iImageHeight;
+                textureDesc.viewFormatCount = 1;
+                textureDesc.viewFormats = aViewFormats;
+                maTextures[name] = mpDevice->CreateTexture(&textureDesc);
+
+#if defined(__EMSCRIPTEN__)
+                wgpu::TextureDataLayout layout = {};
+#else
+                wgpu::TexelCopyBufferLayout layout = {};
+#endif // __EMSCRIPTEN__
+                layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
+                layout.offset = 0;
+                layout.rowsPerImage = iImageHeight;
+                wgpu::Extent3D extent = {};
+                extent.depthOrArrayLayers = 1;
+                extent.width = iImageWidth;
+                extent.height = iImageHeight;
+
+#if defined(__EMSCRIPTEN__)
+                wgpu::ImageCopyTexture destination = {};
+#else 
+                wgpu::TexelCopyTextureInfo destination = {};
+#endif // __EMSCRIPTEN__
+                destination.aspect = wgpu::TextureAspect::All;
+                destination.mipLevel = 0;
+                destination.origin = {.x = 0, .y = 0, .z = 0};
+                destination.texture = maTextures[name];
+                mpDevice->GetQueue().WriteTexture(
+                    &destination,
+                    pImageData,
+                    iImageWidth * iImageHeight * 4,
+                    &layout,
+                    &extent);
+
+                mpDevice->GetQueue().WriteTexture(
+                    &destination,
+                    pImageData,
+                    iImageWidth * iImageHeight * 4,
+                    &layout,
+                    &extent);
+
+#if defined(__EMSCRIPTEN__)
+                free(acImageData);
+#endif // __EMSCRIPTEN__
+            }
+            else if(type == "Render Target")
+            {
+                wgpu::TextureDescriptor textureDesc = {};
+                textureDesc.format = wgpu::TextureFormat::RGBA32Float;
+
+                std::string format = externalDataEntry["Format"].GetString();
+                if(format == "rgba32float")
+                {
+                    textureDesc.format = wgpu::TextureFormat::RGBA32Float;
+                }
+                else if(format == "rgba16float")
+                {
+                    textureDesc.format = wgpu::TextureFormat::RGBA16Float;
+                }
+                else if(format == "rg32float")
+                {
+                    textureDesc.format = wgpu::TextureFormat::RG32Float;
+                }
+                else if(format == "r32float")
+                {
+                    textureDesc.format = wgpu::TextureFormat::R32Float;
+                }
+                else
+                {
+                    assert(!"not handled");
+                }
+
+                uint32_t iWidth = mCreateDesc.miScreenWidth;
+                uint32_t iHeight = mCreateDesc.miScreenHeight;
+
+
+                if(externalDataEntry.HasMember("ScaleWidth"))
+                {
+                    float fScaleX = externalDataEntry["ScaleWidth"].GetFloat();
+                    iWidth = (uint32_t)(float(iWidth) * fScaleX);
+                }
+                if(externalDataEntry.HasMember("ScaleHeight"))
+                {
+                    float fScaleY = externalDataEntry["ScaleHeight"].GetFloat();
+                    iHeight = (uint32_t)(float(iWidth) * fScaleY);
+                }
+
+                wgpu::TextureFormat aViewFormats[] = {textureDesc.format};
+
+                textureDesc.usage = wgpu::TextureUsage::StorageBinding | wgpu::TextureUsage::TextureBinding;
+                textureDesc.dimension = wgpu::TextureDimension::e2D;
+                textureDesc.mipLevelCount = 1;
+                textureDesc.sampleCount = 1;
+                textureDesc.size.depthOrArrayLayers = 1;
+                textureDesc.size.width = iWidth;
+                textureDesc.size.height = iHeight;
+                textureDesc.viewFormatCount = 1;
+                textureDesc.viewFormats = aViewFormats;
+                maTextures[name] = mpDevice->CreateTexture(&textureDesc);
+            }
+        }
+    }
+
+    /*
+    **
+    */
+    void CRenderer::loadBVH()
+    {
+        auto fileExtensionStart = mCreateDesc.mMeshFilePath.rfind(".");
+        std::string baseName = mCreateDesc.mMeshFilePath.substr(0, fileExtensionStart);
+        std::string bvhName = baseName + "-triangles.bvh";
+
+#if defined(__EMSCRIPTEN__)
+        char* acBVHData = nullptr;
+        uint32_t iFileSize = Loader::loadFile(&acBVHData, bvhName.c_str());
+#else
+        std::vector<char> acBVHDataVector;
+        Loader::loadFile(acBVHDataVector, bvhName);
+        char* acBVHData = acBVHDataVector.data();
+        uint32_t iFileSize = (uint32_t)acBVHDataVector.size();
+#endif // __EMSCRIPTEN__
+
+        wgpu::BufferDescriptor bufferDesc = {};
+        bufferDesc.size = iFileSize;
+        bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
+        maBuffers["bvhNodes"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["bvhNodes"].SetLabel("BVH Buffer");
+        mpDevice->GetQueue().WriteBuffer(maBuffers["bvhNodes"], 0, acBVHData, iFileSize);
+
+#if defined(__EMSCRIPTEN__)
+        free(acBVHData);
+#endif // __EMSCRIPTEN__
+        
+    }
+
+    /*
+    **
+    */
+    void CRenderer::loadFont()
+    {
+        // font atlas
+        
+#if defined(__EMSCRIPTEN__)
+        char* acAtlasImageData = nullptr;
+        uint32_t iFileSize = Loader::loadFile(&acAtlasImageData, "font-atlas.png");
+#else 
+        std::vector<char> acAtlasImageDataV;
+        Loader::loadFile(acAtlasImageDataV, "font-atlas.png");
+        char* acAtlasImageData = acAtlasImageDataV.data();
+        uint32_t iFileSize = (uint32_t)acAtlasImageDataV.size();
+#endif // __EMSCRIPTEN__
+
+        int32_t iImageWidth = 0, iImageHeight = 0, iNumComp = 0;
+        stbi_uc* pImageData = stbi_load_from_memory(
+            (stbi_uc const*)acAtlasImageData,
+            (int32_t)iFileSize,
+            &iImageWidth,
+            &iImageHeight,
+            &iNumComp,
+            4
+        );
+
+        wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
+        wgpu::TextureDescriptor textureDesc = {};
+        textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+        textureDesc.dimension = wgpu::TextureDimension::e2D;
+        textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+        textureDesc.mipLevelCount = 1;
+        textureDesc.sampleCount = 1;
+        textureDesc.size.depthOrArrayLayers = 1;
+        textureDesc.size.width = iImageWidth;
+        textureDesc.size.height = iImageHeight;
+        textureDesc.viewFormatCount = 1;
+        textureDesc.viewFormats = aViewFormats;
+        maTextures["font-atlas-image"] = mpDevice->CreateTexture(&textureDesc);
+        maTextures["font-atlas-image"].SetLabel("Font Atlas");
+
+#if defined(__EMSCRIPTEN__)
+        wgpu::TextureDataLayout layout = {};
+#else
+        wgpu::TexelCopyBufferLayout layout = {};
+#endif // __EMSCRIPTEN__
+        layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
+        layout.offset = 0;
+        layout.rowsPerImage = iImageHeight;
+        wgpu::Extent3D extent = {};
+        extent.depthOrArrayLayers = 1;
+        extent.width = iImageWidth;
+        extent.height = iImageHeight;
+
+#if defined(__EMSCRIPTEN__)
+        wgpu::ImageCopyTexture destination = {};
+#else 
+        wgpu::TexelCopyTextureInfo destination = {};
+#endif // __EMSCRIPTEN__
+        destination.aspect = wgpu::TextureAspect::All;
+        destination.mipLevel = 0;
+        destination.origin = {.x = 0, .y = 0, .z = 0, };
+        destination.texture = maTextures["font-atlas-image"];
+        mpDevice->GetQueue().WriteTexture(
+            &destination,
+            pImageData,
+            iImageWidth * iImageHeight * 4,
+            &layout,
+            &extent);
+        stbi_image_free(pImageData);
+
+        wgpu::TextureViewDescriptor viewDesc = {};
+        viewDesc.arrayLayerCount = 1;
+        viewDesc.aspect = wgpu::TextureAspect::All;
+        viewDesc.baseArrayLayer = 0;
+        viewDesc.baseMipLevel = 0;
+        viewDesc.dimension = wgpu::TextureViewDimension::e2D;
+        viewDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+        viewDesc.label = "Font Texture Atlas";
+        viewDesc.mipLevelCount = 1;
+#if !defined(__EMSCRIPTEN__)
+        viewDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+#endif // __EMSCRIPTEN__
+        maTextureViews["font-atlas-image"] = maTextures["font-atlas-image"].CreateView(&viewDesc);
+
+#if defined(__EMSCRIPTEN__)
+        free(acAtlasImageData);
+#endif // __EMSCRIPTEN__
+
+#if defined(__EMSCRIPTEN__)
+        char* acFontInfoData = nullptr;
+        iFileSize = Loader::loadFile(&acFontInfoData, "glyph_info.bin");
+#else 
+        std::vector<char> acFontInfoDataV;
+        Loader::loadFile(acFontInfoDataV, "glyph_info.bin");
+        char* acFontInfoData = acFontInfoDataV.data();
+        iFileSize = (uint32_t)acFontInfoDataV.size();
+#endif // __EMSCRIPTEN__
+
+        wgpu::BufferDescriptor bufferDesc = {};
+        bufferDesc.size = iFileSize;
+        bufferDesc.usage = (wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage);
+        maBuffers["font-info"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["font-info"].SetLabel("Font Info Buffer");
+        mpDevice->GetQueue().WriteBuffer(maBuffers["font-info"], 0, acFontInfoData, iFileSize);
+
+        uint32_t iNumFontInfo = iFileSize / sizeof(OutputGlyphInfo);
+        maFontInfo.resize(iNumFontInfo);
+        memcpy(maFontInfo.data(), acFontInfoData, iFileSize);
+
+#if defined(__EMSCRIPTEN__)
+        free(acFontInfoData);
+#endif // __EMSCRIPTEN__
+
+        bufferDesc.size = sizeof(Vertex) * 4;
+        bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
+        maBuffers["quad-vertex-buffer"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["quad-vertex-buffer"].SetLabel("Glyph Quad Vertex Buffer");
+
+        Vertex aVertices[4];
+        aVertices[0].mPosition = float4(-1.0f, 1.0f, 0.0f, 1.0f);
+        aVertices[1].mPosition = float4(-1.0f, -1.0f, 0.0f, 1.0f);
+        aVertices[2].mPosition = float4(1.0f, -1.0f, 0.0f, 1.0f);
+        aVertices[3].mPosition = float4(1.0f, 1.0f, 0.0f, 1.0f);
+        aVertices[0].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
+        aVertices[1].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
+        aVertices[2].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
+        aVertices[3].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
+        aVertices[0].mUV = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        aVertices[1].mUV = float4(0.0f, 1.0f, 0.0f, 1.0f);
+        aVertices[2].mUV = float4(1.0f, 1.0f, 0.0f, 1.0f);
+        aVertices[3].mUV = float4(1.0f, 0.0f, 0.0f, 1.0f);
+        mpDevice->GetQueue().WriteBuffer(maBuffers["quad-vertex-buffer"], 0, aVertices, sizeof(aVertices));
+
+        bufferDesc.size = sizeof(uint32_t) * 6;
+        bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index;
+        maBuffers["quad-index-buffer"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["quad-index-buffer"].SetLabel("Glyph Quad Index Buffer");
+
+        uint32_t aiIndices[6] = {0, 1, 2, 3, 2, 0};
+        mpDevice->GetQueue().WriteBuffer(maBuffers["quad-index-buffer"], 0, aiIndices, sizeof(aiIndices));
+
+        bufferDesc.size = 1024;
+        bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
+        maBuffers["glyph-coordinates"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["glyph-coordinates"].SetLabel("Glyph Coordinates");
+
+        bufferDesc.size = 64;
+        bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+        maBuffers["draw-text-uniform"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["draw-text-uniform"].SetLabel("Draw Text Uniform Buffer");
+
+        setupFontPipeline();
+        
+    }
+
+    /*
+    **
+    */
+    void CRenderer::loadTexturesIntoAtlas()
+    {
+        struct TextureAtlasInfo
+        {
+            uint2               miTextureCoord;
+            float2              mUV;
+            uint32_t            miTextureID;
+            uint32_t            miImageWidth;
+            uint32_t            miImageHeight;
+            uint32_t            miPadding0;
+        };
+
+        std::vector<TextureAtlasInfo> aTextureAtlasInfo;
+        std::vector<std::string> aDiffuseTextureNames;
+        std::vector<std::string> aEmissiveTextureNames;
+        std::vector<std::string> aSpecularTextureNames;
+        std::vector<std::string> aNormalTextureNames;
+        {
+            // diffuse texture atlas
+            int32_t iAtlasImageWidth = 8192;
+            int32_t iAtlasImageHeight = 8192;
+            wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
+            wgpu::TextureDescriptor textureDesc = {};
+            textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+            textureDesc.dimension = wgpu::TextureDimension::e2D;
+            textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+            textureDesc.mipLevelCount = 1;
+            textureDesc.sampleCount = 1;
+            textureDesc.size.depthOrArrayLayers = 1;
+            textureDesc.size.width = iAtlasImageWidth;
+            textureDesc.size.height = iAtlasImageHeight;
+            textureDesc.viewFormatCount = 1;
+            textureDesc.viewFormats = aViewFormats;
+
+            maTextures["totalDiffuseTextures"] = mpDevice->CreateTexture(&textureDesc);
+            mDiffuseTextureAtlas = maTextures["totalDiffuseTextures"];
+
+
+#if defined(__EMSCRIPTEN__)
+            char* acTextureNames = nullptr;
+            uint32_t iSize = Loader::loadFile(&acTextureNames, desc.mMeshFilePath + "-texture-names.tex");
+            if(iSize > 0)
+#else 
+            std::vector<char> acTextureNames;
+            Loader::loadFile(acTextureNames, mCreateDesc.mMeshFilePath + "-texture-names.tex");
+            if(acTextureNames.size() > 0)
+#endif // __EMSCRIPTEN__
+            {
+                uint32_t iDiffuseSignature = ('D') | ('F' << 8) | ('S' << 16) | ('E' << 24);
+                uint32_t iEmissiveSignature = ('E') | ('M' << 8) | ('S' << 16) | ('V' << 24);
+                uint32_t iSpecularSignature = ('S') | ('P' << 8) | ('C' << 16) | ('L' << 24);
+                uint32_t iNormalSignature = ('N') | ('R' << 8) | ('M' << 16) | ('L' << 24);
+
+#if defined(__EMSCRIPTEN__)
+                uint32_t const* piData = (uint32_t const*)acTextureNames;
+                char const* pcEnd = ((char const*)piData) + iSize;
+#else 
+                uint32_t const* piData = (uint32_t const*)acTextureNames.data();
+                char const* pcEnd = ((char const*)piData) + acTextureNames.size();
+#endif // __EMSCRIPTEN__
+                for(uint32_t iType = 0; iType < 4; iType++)
+                {
+                    uint32_t iSignature = *piData++;
+                    uint32_t iNumTextures = *piData++;
+                    char const* pcChar = (char const*)piData;
+                    for(uint32_t i = 0; i < iNumTextures; i++)
+                    {
+                        std::vector<char> acName;
+                        while(*pcChar != '\0')
+                        {
+                            acName.push_back(*pcChar++);
+                        }
+                        acName.push_back(*pcChar++);
+
+                        std::string convertedName = std::string(acName.data());
+                        auto iter = convertedName.rfind("/");
+                        if(iter == std::string::npos)
+                        {
+                            iter = convertedName.rfind("\\");
+                        }
+
+                        std::string baseName = convertedName;
+                        if(iter != std::string::npos)
+                        {
+                            baseName = convertedName.substr(iter);
+                        }
+                        iter = baseName.rfind(".");
+                        std::string noExtension = baseName.substr(0, iter);
+                        std::string oldFileExtension = baseName.substr(iter);
+
+                        if(oldFileExtension != ".jpeg" && oldFileExtension != ".png" && oldFileExtension != ".jpg")
+                        {
+                            noExtension += ".png";
+                        }
+                        else
+                        {
+                            noExtension += oldFileExtension;
+                        }
+
+                        if(iSignature == iDiffuseSignature)
+                        {
+                            aDiffuseTextureNames.push_back(noExtension);
+                        }
+                        else if(iSignature == iEmissiveSignature)
+                        {
+                            aEmissiveTextureNames.push_back(noExtension);
+                        }
+                        else if(iSignature == iSpecularSignature)
+                        {
+                            aSpecularTextureNames.push_back(noExtension);
+                        }
+                        else if(iSignature == iNormalSignature)
+                        {
+                            aNormalTextureNames.push_back(noExtension);
+                        }
+                    }
+                    piData = (uint32_t const*)pcChar;
+                    if(pcChar == pcEnd)
+                    {
+                        break;
+                    }
+
+                }   // for texture type
+
+#if defined(__EMSCRIPTEN__)
+                free(acTextureNames);
+#endif // __EMSCRIPTEN__
+
+                int32_t iAtlasIndex = 0;
+                int32_t iX = 0, iY = 0;
+                int32_t iLargestHeight = 0;
+
+                auto copyToAtlas = [&](
+                    int32_t& iX,
+                    int32_t& iY,
+                    int32_t iAtlasImageWidth,
+                    int32_t iAtlasImageHeight,
+                    std::string const& textureName,
+                    wgpu::Texture& textureAtlas,
+                    int32_t& iLargestHeight)
+                    {
+                        std::string parsedTextureName = std::string("textures/") + textureName;
+
+#if defined(__EMSCRIPTEN__)
+                        char* acTextureImageData = nullptr;
+                        uint32_t iSize = Loader::loadFile(&acTextureImageData, parsedTextureName);
+                        int32_t iImageWidth = 0, iImageHeight = 0, iImageComp = 0;
+                        stbi_uc* pImageData = stbi_load_from_memory(
+                            (stbi_uc const*)acTextureImageData,
+                            (int32_t)iSize,
+                            &iImageWidth,
+                            &iImageHeight,
+                            &iImageComp,
+                            4
+                        );
+#else
+                        std::vector<char> acTextureImageData;
+                        Loader::loadFile(acTextureImageData, parsedTextureName);
+                        int32_t iImageWidth = 0, iImageHeight = 0, iImageComp = 0;
+                        stbi_uc* pImageData = stbi_load_from_memory(
+                            (stbi_uc const*)acTextureImageData.data(),
+                            (int32_t)acTextureImageData.size(),
+                            &iImageWidth,
+                            &iImageHeight,
+                            &iImageComp,
+                            4
+                        );
+#endif // __EMSCRIPTEN__
+
+                        if(pImageData)
+                        {
+                            iLargestHeight = std::max(iLargestHeight, iImageHeight);
+                            if(iX + iImageWidth >= iAtlasImageWidth)
+                            {
+                                iX = 0;
+                                iY += iLargestHeight;
+                                iLargestHeight = 0;
+                            }
+
+#if defined(__EMSCRIPTEN__)
+                            wgpu::TextureDataLayout layout = {};
+#else
+                            wgpu::TexelCopyBufferLayout layout = {};
+#endif // __EMSCRIPTEN__
+                            layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
+                            layout.offset = 0;
+                            layout.rowsPerImage = iImageHeight;
+                            wgpu::Extent3D extent = {};
+                            extent.depthOrArrayLayers = 1;
+                            extent.width = iImageWidth;
+                            extent.height = iImageHeight;
+
+#if defined(__EMSCRIPTEN__)
+                            wgpu::ImageCopyTexture destination = {};
+#else 
+                            wgpu::TexelCopyTextureInfo destination = {};
+#endif // __EMSCRIPTEN__
+                            destination.aspect = wgpu::TextureAspect::All;
+                            destination.mipLevel = 0;
+                            destination.origin = {.x = (uint32_t)iX, .y = (uint32_t)iY, .z = 0};
+                            destination.texture = textureAtlas;
+                            mpDevice->GetQueue().WriteTexture(
+                                &destination,
+                                pImageData,
+                                iImageWidth * iImageHeight * 4,
+                                &layout,
+                                &extent);
+
+                            TextureAtlasInfo info = {};
+                            info.miTextureCoord = uint2(iX, iY);
+                            info.miTextureID = iAtlasIndex;
+                            info.mUV = float2(float(iX) / float(iAtlasImageWidth), float(iY) / float(iAtlasImageHeight));
+                            info.miImageWidth = iImageWidth;
+                            info.miImageHeight = iImageHeight;
+                            aTextureAtlasInfo.push_back(info);
+
+                            iX += iImageWidth;
+
+                            stbi_image_free(pImageData);
+
+#if defined(__EMSCRIPTEN__)
+                            free(acTextureImageData);
+#endif // __EMSCRIPTEN__
+                        }
+                        else
+                        {
+                            DEBUG_PRINTF("!!! Can\'t load \"%s\"\n", parsedTextureName.c_str());
+                        }
+                    };
+
+
+                for(auto const& diffuseTextureName : aDiffuseTextureNames)
+                {
+                    copyToAtlas(iX, iY, iAtlasImageWidth, iAtlasImageHeight, diffuseTextureName, mDiffuseTextureAtlas, iLargestHeight);
+
+                    ++iAtlasIndex;
+                }
+
+            }
+
+        }   // textures
+
+        wgpu::TextureViewDescriptor viewDesc = {};
+        viewDesc.arrayLayerCount = 1;
+        viewDesc.aspect = wgpu::TextureAspect::All;
+        viewDesc.baseArrayLayer = 0;
+        viewDesc.baseMipLevel = 0;
+        viewDesc.dimension = wgpu::TextureViewDimension::e2D;
+        viewDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+        viewDesc.label = "Diffuse Texture Atlas";
+        viewDesc.mipLevelCount = 1;
+#if !defined(__EMSCRIPTEN__)
+        viewDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+#endif // __EMSCRIPTEN__
+        mDiffuseTextureAtlasView = mDiffuseTextureAtlas.CreateView(&viewDesc);
+
+        wgpu::BufferDescriptor bufferDesc = {};
+        bufferDesc.mappedAtCreation = false;
+        bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
+        bufferDesc.size = std::max((uint32_t)sizeof(TextureAtlasInfo) * (uint32_t)aTextureAtlasInfo.size(), 64u);
+        maBuffers["diffuseTextureAtlasInfoBuffer"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["diffuseTextureAtlasInfoBuffer"].SetLabel("Diffuse Texture Atlas Info Buffer");
+        mpDevice->GetQueue().WriteBuffer(
+            maBuffers["diffuseTextureAtlasInfoBuffer"],
+            0,
+            aTextureAtlasInfo.data(),
+            sizeof(TextureAtlasInfo) * (uint32_t)aTextureAtlasInfo.size()
+        );
     }
 
 }   // Render
