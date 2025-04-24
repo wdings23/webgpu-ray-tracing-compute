@@ -112,154 +112,7 @@ namespace Render
         mpDevice = desc.mpDevice;
         wgpu::Device& device = *mpDevice;
 
-
-#if defined(__EMSCRIPTEN__)
-        char* acTriangleBuffer = nullptr;
-        uint64_t iSize = Loader::loadFile(&acTriangleBuffer, desc.mMeshFilePath + "-triangles.bin");
-        printf("acTriangleBuffer = 0x%X size: %lld\n", (uint32_t)acTriangleBuffer, iSize);
-        uint32_t const* piData = (uint32_t const*)acTriangleBuffer;
-#else 
-        std::vector<char> acTriangleBuffer;
-        Loader::loadFile(acTriangleBuffer, desc.mMeshFilePath + "-triangles.bin");
-        uint32_t const* piData = (uint32_t const*)acTriangleBuffer.data();
-#endif // __EMSCRIPTEN__
-
-        uint32_t iNumMeshes = *piData++;
-        uint32_t iNumTotalVertices = *piData++;
-        uint32_t iNumTotalTriangles = *piData++;
-        uint32_t iVertexSize = *piData++;
-        uint32_t iTriangleStartOffset = *piData++;
-
-        printf("num meshes: %d\n", iNumMeshes);
-        printf("num total vertices: %d\n", iNumTotalVertices);
-
-        // triangle ranges for all the meshes
-        maMeshTriangleRanges.resize(iNumMeshes);
-        memcpy(maMeshTriangleRanges.data(), piData, sizeof(MeshTriangleRange) * iNumMeshes);
-        piData += (2 * iNumMeshes);
-
-        // the total mesh extent is at the very end of the list
-        MeshExtent const* pMeshExtent = (MeshExtent const*)piData;
-        maMeshExtents.resize(iNumMeshes + 1);
-        memcpy(maMeshExtents.data(), pMeshExtent, sizeof(MeshExtent) * (iNumMeshes + 1));
-        pMeshExtent += (iNumMeshes + 1);
-        mTotalMeshExtent = maMeshExtents.back();
-
-        // all the mesh vertices
-        std::vector<Vertex> aTotalMeshVertices(iNumTotalVertices);
-        Vertex const* pVertices = (Vertex const*)pMeshExtent;
-        memcpy(aTotalMeshVertices.data(), pVertices, iNumTotalVertices * sizeof(Vertex));
-        pVertices += iNumTotalVertices;
-
-        // all the triangle indices
-        std::vector<uint32_t> aiTotalMeshTriangleIndices(iNumTotalTriangles * 3);
-        piData = (uint32_t const*)pVertices;
-        memcpy(aiTotalMeshTriangleIndices.data(), piData, iNumTotalTriangles * 3 * sizeof(uint32_t));
-
-#if defined(__EMSCRIPTEN__)
-        Loader::loadFileFree(acTriangleBuffer);
-#endif // __EMSCRIPTEN__
-
         wgpu::BufferDescriptor bufferDesc = {};
-
-        bufferDesc.size = iNumTotalVertices * sizeof(Vertex);
-        bufferDesc.usage = wgpu::BufferUsage::Vertex | wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
-        maBuffers["train-vertex-buffer"] = device.CreateBuffer(&bufferDesc);
-        maBuffers["train-vertex-buffer"].SetLabel("Train Vertex Buffer");
-        maBufferSizes["train-vertex-buffer"] = (uint32_t)bufferDesc.size;
-
-        bufferDesc.size = aiTotalMeshTriangleIndices.size() * sizeof(uint32_t);
-        bufferDesc.usage = wgpu::BufferUsage::Index | wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
-        maBuffers["train-index-buffer"] = device.CreateBuffer(&bufferDesc);
-        maBuffers["train-index-buffer"].SetLabel("Train Index Buffer");
-        maBufferSizes["train-index-buffer"] = (uint32_t)bufferDesc.size;
-
-        bufferDesc.size = iNumTotalVertices * sizeof(Vertex);
-        bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
-        maBuffers["meshTriangleIndexRanges"] = device.CreateBuffer(&bufferDesc);
-        maBuffers["meshTriangleIndexRanges"].SetLabel("Mesh Triangle Ranges");
-        maBufferSizes["meshTriangleIndexRanges"] = (uint32_t)bufferDesc.size;
-
-        bufferDesc.size = (iNumMeshes + 1) * sizeof(MeshExtent);
-        bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
-        maBuffers["meshExtents"] = device.CreateBuffer(&bufferDesc);
-        maBuffers["meshExtents"].SetLabel("Train Mesh Extents");
-        maBufferSizes["meshExtents"] = (uint32_t)bufferDesc.size;
-
-        device.GetQueue().WriteBuffer(maBuffers["train-vertex-buffer"], 0, aTotalMeshVertices.data(), iNumTotalVertices * sizeof(Vertex));
-        device.GetQueue().WriteBuffer(maBuffers["train-index-buffer"], 0, aiTotalMeshTriangleIndices.data(), aiTotalMeshTriangleIndices.size() * sizeof(uint32_t));
-        device.GetQueue().WriteBuffer(maBuffers["meshTriangleIndexRanges"], 0, maMeshTriangleRanges.data(), maMeshTriangleRanges.size() * sizeof(MeshTriangleRange));
-        device.GetQueue().WriteBuffer(maBuffers["meshExtents"], 0, maMeshExtents.data(), maMeshExtents.size() * sizeof(MeshExtent));
-
-        {
-#if defined(__EMSCRIPTEN__)
-            char* acMaterialID = nullptr;
-            bufferDesc.size = Loader::loadFile(&acMaterialID, desc.mMeshFilePath + ".mid");
-#else 
-
-            std::vector<char> acMaterialID;
-            Loader::loadFile(acMaterialID, desc.mMeshFilePath + ".mid");
-            bufferDesc.size = acMaterialID.size();
-#endif // __EMSCRIPTEN__
-
-            bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
-            maBuffers["meshMaterialIDs"] = device.CreateBuffer(&bufferDesc);
-            maBuffers["meshMaterialIDs"].SetLabel("Mesh Material IDs");
-            maBufferSizes["meshEmeshMaterialIDsxtents"] = (uint32_t)bufferDesc.size;
-
-#if defined(__EMSCRIPTEN__)
-            device.GetQueue().WriteBuffer(
-                maBuffers["meshMaterialIDs"],
-                0,
-                acMaterialID,
-                bufferDesc.size);
-            Loader::loadFileFree(acMaterialID);
-#else
-            device.GetQueue().WriteBuffer(
-                maBuffers["meshMaterialIDs"],
-                0,
-                acMaterialID.data(),
-                acMaterialID.size());
-#endif // __EMSCRIPTEN__
-        }
-
-        {
-#if defined(__EMSCRIPTEN__)
-            char* acMaterials = nullptr;
-            bufferDesc.size = Loader::loadFile(&acMaterials, desc.mMeshFilePath + ".mat");
-            printf("mesh material size: %d\n", (uint32_t)bufferDesc.size);
-#else
-            std::vector<char> acMaterials;
-            Loader::loadFile(acMaterials, desc.mMeshFilePath + ".mat");
-
-            bufferDesc.size = acMaterials.size();
-#endif // __EMSCRIPTEN__
-            bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
-            maBuffers["meshMaterials"] = device.CreateBuffer(&bufferDesc);
-            maBuffers["meshMaterials"].SetLabel("Mesh Materials");
-            maBufferSizes["meshMaterials"] = (uint32_t)bufferDesc.size;
-
-#if defined(__EMSCRIPTEN__)
-            device.GetQueue().WriteBuffer(
-                maBuffers["meshMaterials"],
-                0,
-                acMaterials,
-                bufferDesc.size);
-            Loader::loadFileFree(acMaterials);
-#else 
-            device.GetQueue().WriteBuffer(
-                maBuffers["meshMaterials"],
-                0,
-                acMaterials.data(),
-                acMaterials.size());
-#endif // __EMSCRIPTEN__
-        }
-
-        bufferDesc.size = iNumMeshes * sizeof(uint32_t);
-        bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
-        maBuffers["visibilityFlags"] = device.CreateBuffer(&bufferDesc);
-        maBuffers["visibilityFlags"].SetLabel("Mesh Visibility Flags");
-        maBufferSizes["visibilityFlags"] = (uint32_t)bufferDesc.size;
 
         // default uniform buffer
         bufferDesc.size = sizeof(DefaultUniformData);
@@ -300,6 +153,7 @@ namespace Render
 
         mpSampler = desc.mpSampler;
 
+        loadMeshes();
         loadTexturesIntoAtlas();
         loadFont();
         loadBVH();
@@ -307,6 +161,9 @@ namespace Render
 
         createRenderJobs(desc);
 
+        setupUniformAndMiscBuffers();
+
+#if 0
         struct UniformData
         {
             uint32_t    miNumMeshes;
@@ -328,6 +185,7 @@ namespace Render
         bufferDesc.size = 1024;
         mOutputImageBuffer = mpDevice->CreateBuffer(&bufferDesc);
         mOutputImageBuffer.SetLabel("Read Back Image Buffer");
+#endif // #if 0
 
         mLastTimeStart = std::chrono::high_resolution_clock::now();
 
@@ -1341,6 +1199,160 @@ namespace Render
     /*
     **
     */
+    void CRenderer::loadMeshes()
+    {
+#if defined(__EMSCRIPTEN__)
+        char* acTriangleBuffer = nullptr;
+        uint64_t iSize = Loader::loadFile(&acTriangleBuffer, desc.mMeshFilePath + "-triangles.bin");
+        printf("acTriangleBuffer = 0x%X size: %lld\n", (uint32_t)acTriangleBuffer, iSize);
+        uint32_t const* piData = (uint32_t const*)acTriangleBuffer;
+#else 
+        std::vector<char> acTriangleBuffer;
+        Loader::loadFile(acTriangleBuffer, mCreateDesc.mMeshFilePath + "-triangles.bin");
+        uint32_t const* piData = (uint32_t const*)acTriangleBuffer.data();
+#endif // __EMSCRIPTEN__
+
+        uint32_t iNumMeshes = *piData++;
+        uint32_t iNumTotalVertices = *piData++;
+        uint32_t iNumTotalTriangles = *piData++;
+        uint32_t iVertexSize = *piData++;
+        uint32_t iTriangleStartOffset = *piData++;
+
+        printf("num meshes: %d\n", iNumMeshes);
+        printf("num total vertices: %d\n", iNumTotalVertices);
+
+        // triangle ranges for all the meshes
+        maMeshTriangleRanges.resize(iNumMeshes);
+        memcpy(maMeshTriangleRanges.data(), piData, sizeof(MeshTriangleRange) * iNumMeshes);
+        piData += (2 * iNumMeshes);
+
+        // the total mesh extent is at the very end of the list
+        MeshExtent const* pMeshExtent = (MeshExtent const*)piData;
+        maMeshExtents.resize(iNumMeshes + 1);
+        memcpy(maMeshExtents.data(), pMeshExtent, sizeof(MeshExtent) * (iNumMeshes + 1));
+        pMeshExtent += (iNumMeshes + 1);
+        mTotalMeshExtent = maMeshExtents.back();
+
+        // all the mesh vertices
+        std::vector<Vertex> aTotalMeshVertices(iNumTotalVertices);
+        Vertex const* pVertices = (Vertex const*)pMeshExtent;
+        memcpy(aTotalMeshVertices.data(), pVertices, iNumTotalVertices * sizeof(Vertex));
+        pVertices += iNumTotalVertices;
+
+        // all the triangle indices
+        std::vector<uint32_t> aiTotalMeshTriangleIndices(iNumTotalTriangles * 3);
+        piData = (uint32_t const*)pVertices;
+        memcpy(aiTotalMeshTriangleIndices.data(), piData, iNumTotalTriangles * 3 * sizeof(uint32_t));
+
+#if defined(__EMSCRIPTEN__)
+        Loader::loadFileFree(acTriangleBuffer);
+#endif // __EMSCRIPTEN__
+
+        wgpu::BufferDescriptor bufferDesc = {};
+
+        bufferDesc.size = iNumTotalVertices * sizeof(Vertex);
+        bufferDesc.usage = wgpu::BufferUsage::Vertex | wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+        maBuffers["train-vertex-buffer"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["train-vertex-buffer"].SetLabel("Train Vertex Buffer");
+        maBufferSizes["train-vertex-buffer"] = (uint32_t)bufferDesc.size;
+
+        bufferDesc.size = aiTotalMeshTriangleIndices.size() * sizeof(uint32_t);
+        bufferDesc.usage = wgpu::BufferUsage::Index | wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+        maBuffers["train-index-buffer"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["train-index-buffer"].SetLabel("Train Index Buffer");
+        maBufferSizes["train-index-buffer"] = (uint32_t)bufferDesc.size;
+
+        bufferDesc.size = iNumTotalVertices * sizeof(Vertex);
+        bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+        maBuffers["meshTriangleIndexRanges"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["meshTriangleIndexRanges"].SetLabel("Mesh Triangle Ranges");
+        maBufferSizes["meshTriangleIndexRanges"] = (uint32_t)bufferDesc.size;
+
+        bufferDesc.size = (iNumMeshes + 1) * sizeof(MeshExtent);
+        bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+        maBuffers["meshExtents"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["meshExtents"].SetLabel("Train Mesh Extents");
+        maBufferSizes["meshExtents"] = (uint32_t)bufferDesc.size;
+
+        mpDevice->GetQueue().WriteBuffer(maBuffers["train-vertex-buffer"], 0, aTotalMeshVertices.data(), iNumTotalVertices * sizeof(Vertex));
+        mpDevice->GetQueue().WriteBuffer(maBuffers["train-index-buffer"], 0, aiTotalMeshTriangleIndices.data(), aiTotalMeshTriangleIndices.size() * sizeof(uint32_t));
+        mpDevice->GetQueue().WriteBuffer(maBuffers["meshTriangleIndexRanges"], 0, maMeshTriangleRanges.data(), maMeshTriangleRanges.size() * sizeof(MeshTriangleRange));
+        mpDevice->GetQueue().WriteBuffer(maBuffers["meshExtents"], 0, maMeshExtents.data(), maMeshExtents.size() * sizeof(MeshExtent));
+
+        {
+#if defined(__EMSCRIPTEN__)
+            char* acMaterialID = nullptr;
+            bufferDesc.size = Loader::loadFile(&acMaterialID, desc.mMeshFilePath + ".mid");
+#else 
+
+            std::vector<char> acMaterialID;
+            Loader::loadFile(acMaterialID, mCreateDesc.mMeshFilePath + ".mid");
+            bufferDesc.size = acMaterialID.size();
+#endif // __EMSCRIPTEN__
+
+            bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+            maBuffers["meshMaterialIDs"] = mpDevice->CreateBuffer(&bufferDesc);
+            maBuffers["meshMaterialIDs"].SetLabel("Mesh Material IDs");
+            maBufferSizes["meshEmeshMaterialIDsxtents"] = (uint32_t)bufferDesc.size;
+
+#if defined(__EMSCRIPTEN__)
+            device.GetQueue().WriteBuffer(
+                maBuffers["meshMaterialIDs"],
+                0,
+                acMaterialID,
+                bufferDesc.size);
+            Loader::loadFileFree(acMaterialID);
+#else
+            mpDevice->GetQueue().WriteBuffer(
+                maBuffers["meshMaterialIDs"],
+                0,
+                acMaterialID.data(),
+                acMaterialID.size());
+#endif // __EMSCRIPTEN__
+        }
+
+        {
+#if defined(__EMSCRIPTEN__)
+            char* acMaterials = nullptr;
+            bufferDesc.size = Loader::loadFile(&acMaterials, desc.mMeshFilePath + ".mat");
+            printf("mesh material size: %d\n", (uint32_t)bufferDesc.size);
+#else
+            std::vector<char> acMaterials;
+            Loader::loadFile(acMaterials, mCreateDesc.mMeshFilePath + ".mat");
+
+            bufferDesc.size = acMaterials.size();
+#endif // __EMSCRIPTEN__
+            bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+            maBuffers["meshMaterials"] = mpDevice->CreateBuffer(&bufferDesc);
+            maBuffers["meshMaterials"].SetLabel("Mesh Materials");
+            maBufferSizes["meshMaterials"] = (uint32_t)bufferDesc.size;
+
+#if defined(__EMSCRIPTEN__)
+            device.GetQueue().WriteBuffer(
+                maBuffers["meshMaterials"],
+                0,
+                acMaterials,
+                bufferDesc.size);
+            Loader::loadFileFree(acMaterials);
+#else 
+            mpDevice->GetQueue().WriteBuffer(
+                maBuffers["meshMaterials"],
+                0,
+                acMaterials.data(),
+                acMaterials.size());
+#endif // __EMSCRIPTEN__
+        }
+
+        bufferDesc.size = iNumMeshes * sizeof(uint32_t);
+        bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+        maBuffers["visibilityFlags"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["visibilityFlags"].SetLabel("Mesh Visibility Flags");
+        maBufferSizes["visibilityFlags"] = (uint32_t)bufferDesc.size;
+    }
+
+    /*
+    **
+    */
     // external data from external-data.json
     void CRenderer::loadExternalData()
     {
@@ -1976,6 +1988,34 @@ namespace Render
             aTextureAtlasInfo.data(),
             sizeof(TextureAtlasInfo) * (uint32_t)aTextureAtlasInfo.size()
         );
+    }
+
+    /*
+    **
+    */
+    void CRenderer::setupUniformAndMiscBuffers()
+    {
+        struct UniformData
+        {
+            uint32_t    miNumMeshes;
+            float       mfExplodeMultipler;
+        };
+
+        UniformData uniformData;
+        uniformData.miNumMeshes = (uint32_t)maMeshExtents.size();
+        uniformData.mfExplodeMultipler = 1.0f;
+        mpDevice->GetQueue().WriteBuffer(
+            maRenderJobs["Mesh Culling Compute"]->mUniformBuffers["uniformBuffer"],
+            0,
+            &uniformData,
+            sizeof(UniformData));
+
+        wgpu::BufferDescriptor bufferDesc = {};
+        bufferDesc.mappedAtCreation = false;
+        bufferDesc.usage = wgpu::BufferUsage::MapRead | wgpu::BufferUsage::CopyDst;
+        bufferDesc.size = 1024;
+        mOutputImageBuffer = mpDevice->CreateBuffer(&bufferDesc);
+        mOutputImageBuffer.SetLabel("Read Back Image Buffer");
     }
 
 }   // Render

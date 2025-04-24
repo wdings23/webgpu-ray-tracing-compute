@@ -227,10 +227,12 @@ namespace Render
             mSwapChainAttachmentName = szOutputAttachmentName;
         }
 
+        void loadMeshes();
         void loadExternalData();
         void loadBVH();
         void loadFont();
         void loadTexturesIntoAtlas();
+        void setupUniformAndMiscBuffers();
     };
 
 }   // Render
