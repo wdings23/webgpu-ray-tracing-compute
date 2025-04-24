@@ -233,6 +233,7 @@ namespace Render
         void loadFont();
         void loadTexturesIntoAtlas();
         void setupUniformAndMiscBuffers();
+        void createMiscBuffers();
     };
 
 }   // Render

@@ -112,46 +112,9 @@ namespace Render
         mpDevice = desc.mpDevice;
         wgpu::Device& device = *mpDevice;
 
-        wgpu::BufferDescriptor bufferDesc = {};
-
-        // default uniform buffer
-        bufferDesc.size = sizeof(DefaultUniformData);
-        bufferDesc.usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
-        maBuffers["default-uniform-buffer"] = device.CreateBuffer(&bufferDesc);
-        maBuffers["default-uniform-buffer"].SetLabel("Default Uniform Buffer");
-        maBufferSizes["default-uniform-buffer"] = (uint32_t)bufferDesc.size;
-
-        // full screen triangle
-        Vertex aFullScreenTriangles[3];
-        aFullScreenTriangles[0].mPosition = float4(-1.0f, 3.0f, 0.0f, 1.0f);
-        aFullScreenTriangles[0].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
-        aFullScreenTriangles[0].mUV = float4(0.0f, -1.0f, 0.0f, 0.0f);
-
-        aFullScreenTriangles[1].mPosition = float4(-1.0f, -1.0f, 0.0f, 1.0f);
-        aFullScreenTriangles[1].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
-        aFullScreenTriangles[1].mUV = float4(0.0f, 1.0f, 0.0f, 0.0f);
-
-        aFullScreenTriangles[2].mPosition = float4(3.0f, -1.0f, 0.0f, 1.0f);
-        aFullScreenTriangles[2].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
-        aFullScreenTriangles[2].mUV = float4(2.0f, 1.0f, 0.0f, 0.0f);
-
-        bufferDesc.size = sizeof(Vertex) * 3;
-        maBuffers["full-screen-triangle"] = device.CreateBuffer(&bufferDesc);
-        maBuffers["full-screen-triangle"].SetLabel("Full Screen Triangle Buffer");
-        maBufferSizes["full-screen-triangle"] = (uint32_t)bufferDesc.size;
-        device.GetQueue().WriteBuffer(
-            maBuffers["full-screen-triangle"],
-            0,
-            aFullScreenTriangles,
-            3 * sizeof(Vertex));
-
-        bufferDesc.size = 256 * sizeof(float2);
-        bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
-        maBuffers["blueNoiseBuffer"] = device.CreateBuffer(&bufferDesc);
-        maBuffers["blueNoiseBuffer"].SetLabel("Blue Noise Buffer");
-        maBufferSizes["blueNoiseBuffer"] = (uint32_t)bufferDesc.size;
-
         mpSampler = desc.mpSampler;
+
+        createMiscBuffers();
 
         loadMeshes();
         loadTexturesIntoAtlas();
@@ -1992,6 +1955,51 @@ namespace Render
         bufferDesc.size = 1024;
         mOutputImageBuffer = mpDevice->CreateBuffer(&bufferDesc);
         mOutputImageBuffer.SetLabel("Read Back Image Buffer");
+    }
+
+    /*
+    **
+    */
+    void CRenderer::createMiscBuffers()
+    {
+        wgpu::BufferDescriptor bufferDesc = {};
+
+        // default uniform buffer
+        bufferDesc.size = sizeof(DefaultUniformData);
+        bufferDesc.usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
+        maBuffers["default-uniform-buffer"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["default-uniform-buffer"].SetLabel("Default Uniform Buffer");
+        maBufferSizes["default-uniform-buffer"] = (uint32_t)bufferDesc.size;
+
+        // full screen triangle
+        Vertex aFullScreenTriangles[3];
+        aFullScreenTriangles[0].mPosition = float4(-1.0f, 3.0f, 0.0f, 1.0f);
+        aFullScreenTriangles[0].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
+        aFullScreenTriangles[0].mUV = float4(0.0f, -1.0f, 0.0f, 0.0f);
+
+        aFullScreenTriangles[1].mPosition = float4(-1.0f, -1.0f, 0.0f, 1.0f);
+        aFullScreenTriangles[1].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
+        aFullScreenTriangles[1].mUV = float4(0.0f, 1.0f, 0.0f, 0.0f);
+
+        aFullScreenTriangles[2].mPosition = float4(3.0f, -1.0f, 0.0f, 1.0f);
+        aFullScreenTriangles[2].mNormal = float4(0.0f, 0.0f, 1.0f, 1.0f);
+        aFullScreenTriangles[2].mUV = float4(2.0f, 1.0f, 0.0f, 0.0f);
+
+        bufferDesc.size = sizeof(Vertex) * 3;
+        maBuffers["full-screen-triangle"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["full-screen-triangle"].SetLabel("Full Screen Triangle Buffer");
+        maBufferSizes["full-screen-triangle"] = (uint32_t)bufferDesc.size;
+        mpDevice->GetQueue().WriteBuffer(
+            maBuffers["full-screen-triangle"],
+            0,
+            aFullScreenTriangles,
+            3 * sizeof(Vertex));
+
+        bufferDesc.size = 256 * sizeof(float2);
+        bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+        maBuffers["blueNoiseBuffer"] = mpDevice->CreateBuffer(&bufferDesc);
+        maBuffers["blueNoiseBuffer"].SetLabel("Blue Noise Buffer");
+        maBufferSizes["blueNoiseBuffer"] = (uint32_t)bufferDesc.size;
     }
 
 }   // Render
