@@ -67,7 +67,8 @@ namespace Render
 		wgpu::TextureFormat										mDepthStencilViewFormat;
 
 		std::vector<std::pair<std::string, std::pair<std::string, std::string>>>		mAttachmentOrder;
-		std::vector<std::pair<std::string, std::pair<std::string, std::string>>>		mUniformOrder;
+
+		std::vector<std::map<std::string, std::string>>									mUniformOrder;
 
 		std::vector<wgpu::RenderPassColorAttachment>									maOutputAttachments;
 

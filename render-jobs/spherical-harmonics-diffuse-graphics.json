@@ -103,6 +103,7 @@
             "type": "texture",
             "shader_stage": "fragment",
             "usage": "read_only_storage",
+            "sample": "unfilterable_float",
             "external": "true"
         }
     ],

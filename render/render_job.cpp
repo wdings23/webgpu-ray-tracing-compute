@@ -173,10 +173,17 @@ namespace Render
             auto const& aShaderResources = doc["ShaderResources"].GetArray();
             for(auto const& shaderResource : aShaderResources)
             {
-                std::string shaderResourceName = shaderResource["name"].GetString();
-                std::string shaderResourceType = shaderResource["type"].GetString();
-                std::string shaderUsage = shaderResource["usage"].GetString();
-                if(shaderResourceType == "buffer")
+                std::map<std::string, std::string> uniformInfo;
+                uniformInfo["name"] = shaderResource["name"].GetString();
+                uniformInfo["type"] = shaderResource["type"].GetString();
+                uniformInfo["usage"] = shaderResource["usage"].GetString();
+                uniformInfo["sample"] = "float";
+                if(shaderResource.HasMember("sample"))
+                {
+                    uniformInfo["sample"] = shaderResource["sample"].GetString();
+                }
+
+                if(uniformInfo["type"] == "buffer")
                 {
                     uint32_t iSize = 0;
                     if(shaderResource.HasMember("size") || shaderResource.HasMember("external") == false)
@@ -186,44 +193,44 @@ namespace Render
                         std::string shaderStage = shaderResource["shader_stage"].GetString();
 
                         wgpu::BufferDescriptor bufferDesc = {};
-                        bufferDesc.label = shaderResourceName.c_str();
+                        bufferDesc.label = uniformInfo["name"].c_str();
                         bufferDesc.size = iSize;
-                        if(shaderUsage == "read_only_storage")
+                        if(uniformInfo["usage"] == "read_only_storage")
                         {
                             bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
                         }
-                        else if(shaderUsage == "uniform")
+                        else if(uniformInfo["usage"] == "uniform")
                         {
                             bufferDesc.usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
                         }
-                        else if(shaderUsage == "read_write_storage")
+                        else if(uniformInfo["usage"] == "read_write_storage")
                         {
                             bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc;
                         }
-                        else if(shaderUsage == "write_only_storage")
+                        else if(uniformInfo["usage"] == "write_only_storage")
                         {
                             bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc;
                         }
 
-                        mUniformBuffers[shaderResourceName] = createInfo.mpDevice->CreateBuffer(&bufferDesc);
+                        mUniformBuffers[uniformInfo["name"]] = createInfo.mpDevice->CreateBuffer(&bufferDesc);
                     }
                     else
                     {
                         uint32_t iBufferSize = 0;
-                        mUniformBuffers[shaderResourceName] = createInfo.mpfnGetBuffer(iBufferSize, shaderResourceName, createInfo.mpUserData);
+                        mUniformBuffers[uniformInfo["name"]] = createInfo.mpfnGetBuffer(iBufferSize, uniformInfo["name"], createInfo.mpUserData);
                     }
                 }
-                else if(shaderResourceType == "texture")
+                else if(uniformInfo["type"] == "texture")
                 {
                     std::string shaderStage = shaderResource["shader_stage"].GetString();
                     bool bExternalTexture = false;
                     if(shaderResource.HasMember("external"))
                     {
-                        mUniformTextures[shaderResourceName] = createInfo.mpfnGetTexture(shaderResourceName, createInfo.mpUserData);
+                        mUniformTextures[uniformInfo["name"]] = createInfo.mpfnGetTexture(uniformInfo["name"], createInfo.mpUserData);
                     }
                 }
 
-                mUniformOrder.push_back(std::make_pair(shaderResourceName, std::make_pair(shaderResourceType, shaderUsage)));
+                mUniformOrder.push_back(uniformInfo);
 
             }   // for shader
         }
@@ -727,11 +734,11 @@ namespace Render
 
         // shader resouces in group 1
         iIndex = 0;
-        for(auto const& uniformInfo : mUniformOrder)
+        for(auto& uniformInfo : mUniformOrder)
         {
-            std::string const& uniformName = uniformInfo.first;
-            std::string const& uniformType = uniformInfo.second.first;
-            std::string const& uniformUsage = uniformInfo.second.second;
+            std::string const& uniformName = uniformInfo["name"];
+            std::string const& uniformType = uniformInfo["type"];
+            std::string const& uniformUsage = uniformInfo["usage"];
 
             wgpu::BindGroupEntry bindGroupEntry = {};
             wgpu::BindGroupLayoutEntry bindingLayout = {};
@@ -752,11 +759,10 @@ namespace Render
                     bindingLayout.texture.sampleType = wgpu::TextureSampleType::Float;
                     bindingLayout.texture.viewDimension = wgpu::TextureViewDimension::e2D;
 
-// temp for now
-if(uniformName == "sampleRadianceTexture")
-{
-    bindingLayout.texture.sampleType = wgpu::TextureSampleType::UnfilterableFloat;
-}
+                    if(uniformInfo["sample"] == "unfilterable_float")
+                    {
+                        bindingLayout.texture.sampleType = wgpu::TextureSampleType::UnfilterableFloat;
+                    }
                 }
 
                 bindGroupEntry.textureView = mUniformTextures[uniformName].CreateView();
