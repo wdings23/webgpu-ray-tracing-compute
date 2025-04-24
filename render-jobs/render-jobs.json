@@ -21,6 +21,12 @@
             "PassType": "Draw Meshes"
         },
         {
+            "Name": "Direct Radiance Graphics",
+            "Pipeline": "direct-radiance-graphics.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle"
+        },
+        {
             "Name": "Diffuse Temporal Restir Graphics",
             "Pipeline": "temporal-restir-diffuse-graphics.json",
             "Type": "Graphics",

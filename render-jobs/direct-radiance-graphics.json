@@ -1,0 +1,64 @@
+{
+    "Type": "Graphics",
+    "PassType": "Full Triangle",
+    "Shader": "direct-radiance-graphics.shader",
+    "Attachments": [
+        {
+            "Name" : "Direct Radiance Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        
+        {
+            "Name" : "World Position Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "Normal Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        }
+    ],
+    "ShaderResources": [
+        { 
+            "name" : "bvhNodes",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        },
+        { 
+            "name" : "train-vertex-buffer",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        },
+        { 
+            "name" : "train-index-buffer",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        }
+    ],
+    "BlendStates": [
+        {
+            "Enabled": "True"
+        }
+    ],
+    "DepthStencilState":
+    {
+        "DepthEnable": "False",
+        "DepthWriteMask": "One",
+        "DepthFunc": "LessEqual",
+        "StencilEnable": "False"
+    },
+    "RasterState":
+    {
+        "FillMode": "Solid",
+        "CullMode": "None",
+        "FrontFace": "CounterClockwise"
+    }
+}
