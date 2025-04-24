@@ -224,12 +224,15 @@ var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 var<storage, read_write> aiIrradianceCacheCounter: array<atomic<u32>>;
 
 @group(1) @binding(7)
-var<storage, read_write> aIrradianceCacheQueue: array<IrradianceCacheQueueEntry>;
+var<storage, read_write> aiIrradianceIndexQueue: array<u32>;
 
 @group(1) @binding(8)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var<storage, read_write> aIrradianceCacheQueue: array<IrradianceCacheQueueEntry>;
 
 @group(1) @binding(9)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(10)
 var textureSampler: sampler;
 
 @vertex
@@ -860,9 +863,13 @@ fn temporalRestir(
             else 
             {
                 // register to the irradiance cache queue
-                let iIrradianceCacheQueueIndex: u32 = atomicAdd(&aiIrradianceCacheCounter[0], 1u);
-                aIrradianceCacheQueue[iIrradianceCacheQueueIndex].mPosition = vec4<f32>(hitPosition.xyz, 1.0f);
-                aIrradianceCacheQueue[iIrradianceCacheQueueIndex].mNormal = vec4<f32>(intersectionInfo.mHitNormal.xyz, 1.0f);
+                if(aIrradianceCacheQueue[iHitIrradianceCacheIndex].mPosition.w <= 0.0f)
+                {
+                    let iIrradianceCacheQueueIndex: u32 = atomicAdd(&aiIrradianceCacheCounter[0], 1u);
+                    aiIrradianceIndexQueue[iIrradianceCacheQueueIndex] = iHitIrradianceCacheIndex;
+                    aIrradianceCacheQueue[iHitIrradianceCacheIndex].mPosition = vec4<f32>(hitPosition.xyz, 1.0f);
+                    aIrradianceCacheQueue[iHitIrradianceCacheIndex].mNormal = vec4<f32>(intersectionInfo.mHitNormal.xyz, 1.0f);
+                }
             }
         }
     }    
@@ -1305,79 +1312,6 @@ fn isDisoccluded(
     //return !(iMesh == iPrevMesh && fPrevPlaneDistance <= 0.008f && fCheckDP >= 0.99f);
 }
 
-/////
-fn murmurHash13(
-    src: vec3<u32>) -> u32
-{
-    var srcCopy: vec3<u32> = src;
-    var M: u32 = 0x5bd1e995u;
-    var h: u32 = 1190494759u;
-    srcCopy *= M; srcCopy.x ^= srcCopy.x >> 24u; srcCopy.y ^= srcCopy.y >> 24u; srcCopy.z ^= srcCopy.z >> 24u; srcCopy *= M;
-    h *= M; h ^= srcCopy.x; h *= M; h ^= srcCopy.y; h *= M; h ^= srcCopy.z;
-    h ^= h >> 13u; h *= M; h ^= h >> 15u;
-    return h;
-}
-
-/////
-fn hash13(
-    src: vec3<f32>,
-    iNumSlots: u32) -> u32
-{
-    let srcU32: vec3<u32> = vec3<u32>(
-        bitcast<u32>(src.x),
-        bitcast<u32>(src.y),
-        bitcast<u32>(src.z)
-    );
-
-    let h: u32 = u32(murmurHash13(srcU32));
-    var fValue: f32 = bitcast<f32>((h & 0x007ffffffu) | 0x3f800000u) - 1.0f;
-    let iRet: u32 = clamp(u32(fValue * f32(iNumSlots - 1)), 0u, iNumSlots - 1);
-    return iRet;
-}
-
-/////
-fn fetchIrradianceCacheIndex(
-    position: vec3<f32>
-) -> u32
-{
-    var scaledPosition: vec3<f32> = position * 10.0f;
-    let iHashKey: u32 = hash13(
-        scaledPosition,
-        5000u
-    );
-
-    return iHashKey;
-}
-
-/////
-fn getRadianceFromIrradianceCacheProbe(
-    rayDirection: vec3<f32>,
-    iIrradianceCacheIndex: u32
-) -> vec3<f32>
-{
-    //if(irradianceCache[iIrradianceCacheIndex].mPosition.w == 0.0f)
-    //{
-    //    return vec3<f32>(0.0f, 0.0f, 0.0f);
-    //}
-
-    let probeImageUV: vec2<f32> = octahedronMap2(rayDirection);
-    var iImageY: u32 = clamp(u32(probeImageUV.y * f32(PROBE_IMAGE_SIZE)), 0u, PROBE_IMAGE_SIZE - 1u);
-    var iImageX: u32 = clamp(u32(probeImageUV.x * f32(PROBE_IMAGE_SIZE)), 0u, PROBE_IMAGE_SIZE - 1u);
-    var iImageIndex: u32 = iImageY * PROBE_IMAGE_SIZE + iImageX;
-
-    //return irradianceCache[iIrradianceCacheIndex].mImageProbe[iImageIndex].xyz;
-    return vec3<f32>(0.0f, 0.0f, 0.0f);
-}
-
-/////
-fn getIrradianceCachePosition(
-    iIrradianceCacheIndex: u32
-) -> vec4<f32>
-{
-    return vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
-    //return irradianceCache[iIrradianceCacheIndex].mPosition;
-}
-
 struct Triangle
 {
     miV0 : u32,
@@ -1790,4 +1724,94 @@ fn checkClipSpaceBlock(
     }
 
     return bBlocked;
+}
+
+/*
+**
+*/
+fn fetchIrradianceCacheIndex(
+    position: vec3<f32>
+) -> u32
+{
+    var scaledPosition: vec3<f32> = position;
+    let fSignX: f32 = sign(position.x);
+    let fSignY: f32 = sign(position.y);
+    let fSignZ: f32 = sign(position.z);
+    scaledPosition.x = f32(floor(abs(scaledPosition.x) + 0.5f)) * 0.1f * fSignX;
+    scaledPosition.y = f32(floor(abs(scaledPosition.y) + 0.5f)) * 0.1f * fSignY;
+    scaledPosition.z = f32(floor(abs(scaledPosition.z) + 0.5f)) * 0.1f * fSignZ; 
+
+    let iHashKey: u32 = hash13(
+        scaledPosition,
+        50000u
+    );
+
+    return iHashKey;
+}
+
+/*
+**
+*/
+fn murmurHash13(
+    src: vec3<u32>) -> u32
+{
+    var srcCopy: vec3<u32> = src;
+    var M: u32 = 0x5bd1e995u;
+    var h: u32 = 1190494759u;
+    srcCopy *= M; srcCopy.x ^= srcCopy.x >> 24u; srcCopy.y ^= srcCopy.y >> 24u; srcCopy.z ^= srcCopy.z >> 24u; srcCopy *= M;
+    h *= M; h ^= srcCopy.x; h *= M; h ^= srcCopy.y; h *= M; h ^= srcCopy.z;
+    h ^= h >> 13u; h *= M; h ^= h >> 15u;
+    return h;
+}
+
+/*
+**
+*/
+fn hash13(
+    src: vec3<f32>,
+    iNumSlots: u32) -> u32
+{
+    let srcU32: vec3<u32> = vec3<u32>(
+        bitcast<u32>(src.x),
+        bitcast<u32>(src.y),
+        bitcast<u32>(src.z)
+    );
+
+    let h: u32 = u32(murmurHash13(srcU32));
+    var fValue: f32 = bitcast<f32>((h & 0x007ffffffu) | 0x3f800000u) - 1.0f;
+    let iRet: u32 = clamp(u32(fValue * f32(iNumSlots - 1)), 0u, iNumSlots - 1);
+    return iRet;
+}
+
+/*
+**
+*/
+fn getRadianceFromIrradianceCacheProbe(
+    rayDirection: vec3<f32>,
+    iIrradianceCacheIndex: u32
+) -> vec3<f32>
+{
+    //if(irradianceCache[iIrradianceCacheIndex].mPosition.w == 0.0f)
+    //{
+    //    return vec3<f32>(0.0f, 0.0f, 0.0f);
+    //}
+
+    let probeImageUV: vec2<f32> = octahedronMap2(rayDirection);
+    var iImageY: u32 = clamp(u32(probeImageUV.y * f32(PROBE_IMAGE_SIZE)), 0u, PROBE_IMAGE_SIZE - 1u);
+    var iImageX: u32 = clamp(u32(probeImageUV.x * f32(PROBE_IMAGE_SIZE)), 0u, PROBE_IMAGE_SIZE - 1u);
+    var iImageIndex: u32 = iImageY * PROBE_IMAGE_SIZE + iImageX;
+
+    //return irradianceCache[iIrradianceCacheIndex].mImageProbe[iImageIndex].xyz;
+    return vec3<f32>(0.0f, 0.0f, 0.0f);
+}
+
+/*
+**
+*/
+fn getIrradianceCachePosition(
+    iIrradianceCacheIndex: u32
+) -> vec4<f32>
+{
+    return vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
+    //return irradianceCache[iIrradianceCacheIndex].mPosition;
 }

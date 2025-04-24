@@ -172,6 +172,12 @@ namespace Render
             acClearData,
             sizeof(acClearData)
         );
+        mpDevice->GetQueue().WriteBuffer(
+            maBuffers["irradianceCacheQueueCounter"],
+            0,
+            acClearData,
+            sizeof(acClearData)
+        );
 
         for(auto queuedData : maQueueData)
         {

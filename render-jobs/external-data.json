@@ -6,9 +6,14 @@
             "Size": 256
         },
         {
+            "Name": "irradianceCacheIndexQueue",
+            "Type": "Buffer",
+            "Size": 4194304
+        },
+        {
             "Name": "irradianceCacheQueue",
             "Type": "Buffer",
-            "Size": 1048576
+            "Size": 4194304
         },
         {
             "Name": "irradianceCache",
