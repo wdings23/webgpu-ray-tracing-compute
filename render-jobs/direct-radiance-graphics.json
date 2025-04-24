@@ -18,6 +18,11 @@
             "Name" : "Normal Output",
             "Type": "TextureInput",
             "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "Sun Light Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Atmosphere Graphics"
         }
     ],
     "ShaderResources": [

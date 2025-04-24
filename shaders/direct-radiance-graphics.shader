@@ -77,6 +77,9 @@ var worldPositionTexture: texture_2d<f32>;
 @group(0) @binding(1)
 var normalTexture: texture_2d<f32>;
 
+@group(0) @binding(2)
+var sunLightTexture: texture_2d<f32>;
+
 @group(1) @binding(0)
 var<storage, read> aSceneBVHNodes: array<BVHNode2>;
 
@@ -133,11 +136,16 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         in.uv
     );
 
+    var ret: vec3<f32> = textureSample(
+        sunLightTexture,
+        textureSampler,
+        vec2<f32>(0.0f, 0.0f)
+    ).xyz;
+
     var ray: Ray;
-    ray.mOrigin = vec4<f32>(worldPosition.xyz, 1.0f);
+    ray.mOrigin = vec4<f32>(worldPosition.xyz + defaultUniformBuffer.mLightDirection.xyz * 0.01f, 1.0f);
     ray.mDirection = vec4<f32>(defaultUniformBuffer.mLightDirection.xyz, 1.0f);
 
-    var ret: vec3<f32> = vec3<f32>(1.0f, 1.0f, 1.0f);
     var intersectionInfo: IntersectBVHResult = intersectBVH4(ray, 0u);
     if(intersectionInfo.miHitTriangle != UINT32_MAX)
     {

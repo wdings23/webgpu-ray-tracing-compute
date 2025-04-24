@@ -105,6 +105,11 @@
             "Name": "Previous Motion Vector Output",
             "Type": "TextureInput",
             "ParentJobName": "Copy Render Targets"
+        },
+        {
+            "Name": "Direct Radiance Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Direct Radiance Graphics"
         }
 
 

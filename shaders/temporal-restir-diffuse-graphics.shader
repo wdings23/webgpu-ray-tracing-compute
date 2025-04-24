@@ -180,7 +180,7 @@ var motionVectorTexture: texture_2d<f32>;
 var prevMotionVectorTexture: texture_2d<f32>;
 
 @group(0) @binding(12)
-var textureSampler: sampler;
+var directRadianceTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
 var<uniform> uniformData: UniformData;
@@ -214,6 +214,9 @@ var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(6)
 var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(7)
+var textureSampler: sampler;
 
 @vertex
 fn vs_main(@builtin(vertex_index) i : u32) -> VertexOutput 
@@ -530,7 +533,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     // intersection check to see if the neighbor's ray direction is blocked
     var ray: Ray;
     ray.mDirection = vec4<f32>(result.mRayDirection.xyz, 1.0f);
-    ray.mOrigin = vec4<f32>(worldPosition.xyz, 1.0f);
+    ray.mOrigin = vec4<f32>(worldPosition.xyz + result.mRayDirection.xyz * 0.01f, 1.0f);
     var intersectionInfo: IntersectBVHResult;
     intersectionInfo = intersectBVH4(ray, 0u);
     if((length(result.mHitPosition.xyz) >= RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) < RAY_LENGTH) || 
@@ -603,7 +606,7 @@ fn testDirectLighting(uv: vec2<f32>) -> vec3<f32>
     var origin: vec3<f32> = worldPosition.xyz + rayDirection * 0.001f;
 
     var ray: Ray;
-    ray.mOrigin = vec4<f32>(origin, 1.0f);
+    ray.mOrigin = vec4<f32>(origin + defaultUniformBuffer.mLightDirection.xyz * 0.01f, 1.0f);
     ray.mDirection = vec4<f32>(defaultUniformBuffer.mLightDirection.xyz, 1.0f);
 
     var ret: vec3<f32> = vec3<f32>(1.0f, 1.0f, 1.0f);
@@ -768,7 +771,7 @@ fn temporalRestir(
         clipSpacePosition.y /= clipSpacePosition.w;
         clipSpacePosition.z /= clipSpacePosition.w;
         clipSpacePosition.x = clipSpacePosition.x * 0.5f + 0.5f;
-        clipSpacePosition.y = 1.0f - (clipSpacePosition.y * 0.5f + 0.5f);
+        clipSpacePosition.y = (clipSpacePosition.y * 0.5f + 0.5f);
         clipSpacePosition.z = clipSpacePosition.z * 0.5f + 0.5f;
         
         let imageCoord: vec2u = vec2u(
@@ -785,32 +788,35 @@ fn temporalRestir(
         hitPositionClipSpace.y /= hitPositionClipSpace.w;
         hitPositionClipSpace.z /= hitPositionClipSpace.w;
         hitPositionClipSpace.x = hitPositionClipSpace.x * 0.5f + 0.5f;
-        hitPositionClipSpace.y = 1.0f - (hitPositionClipSpace.y * 0.5f + 0.5f);
+        hitPositionClipSpace.y = (hitPositionClipSpace.y * 0.5f + 0.5f);
         hitPositionClipSpace.z = hitPositionClipSpace.z * 0.5f + 0.5f;
 
         let fDepthDiff: f32 = abs(hitPositionClipSpace.z - clipSpacePosition.z);
 
         if(clipSpacePosition.x >= 0.0f && clipSpacePosition.x <= 1.0f &&
            clipSpacePosition.y >= 0.0f && clipSpacePosition.y <= 1.0f && 
-           fDepthDiff <= 0.1f)
+           fDepthDiff <= 0.01f)
         {
             // on screen
 
-            //let prevOnScreenUV: vec2<f32> = getPreviousScreenUV(clipSpacePosition.xy);
-            //candidateRadiance = textureSample(
-            //    prevDirectSunRadianceTexture,
-            //    textureSampler,
-            //    prevOnScreenUV.xy);
+            let prevOnScreenUV: vec2<f32> = getPreviousScreenUV(clipSpacePosition.xy);
+            candidateRadiance = textureLoad(
+                directRadianceTexture,
+                imageCoord.xy,
+                0);
 
             //candidateRadiance += textureSample(
             //    prevEmissiveRadianceTexture,
             //    textureSampler,
             //    prevOnScreenUV.xy);
 
-            //// distance attenuation
-            //let diff: vec3<f32> = hitPosition.xyz - worldPosition.xyz;
-            //let fDistanceAttenuation: f32 = 1.0f / max(dot(diff, diff), 1.0f);
-            //candidateRadiance *= fDistanceAttenuation;
+            let fReflectivity: f32 = 0.3f;
+
+            // distance attenuation
+            let diff: vec3<f32> = hitPosition.xyz - worldPosition.xyz;
+            let fDistanceAttenuation: f32 = 1.0f / max(dot(diff, diff), 1.0f);
+            candidateRadiance *= fDistanceAttenuation;
+            candidateRadiance *= fReflectivity;
 
             // debug
             //candidateRayDirection = vec4<f32>(
