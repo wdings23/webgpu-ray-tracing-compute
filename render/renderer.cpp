@@ -163,30 +163,6 @@ namespace Render
 
         setupUniformAndMiscBuffers();
 
-#if 0
-        struct UniformData
-        {
-            uint32_t    miNumMeshes;
-            float       mfExplodeMultipler;
-        };
-
-        UniformData uniformData;
-        uniformData.miNumMeshes = (uint32_t)maMeshExtents.size();
-        uniformData.mfExplodeMultipler = 1.0f;
-        device.GetQueue().WriteBuffer(
-            maRenderJobs["Mesh Culling Compute"]->mUniformBuffers["uniformBuffer"],
-            0,
-            &uniformData,
-            sizeof(UniformData));
-        
-        bufferDesc = {};
-        bufferDesc.mappedAtCreation = false;
-        bufferDesc.usage = wgpu::BufferUsage::MapRead | wgpu::BufferUsage::CopyDst;
-        bufferDesc.size = 1024;
-        mOutputImageBuffer = mpDevice->CreateBuffer(&bufferDesc);
-        mOutputImageBuffer.SetLabel("Read Back Image Buffer");
-#endif // #if 0
-
         mLastTimeStart = std::chrono::high_resolution_clock::now();
 
         mpInstance = desc.mpInstance;
