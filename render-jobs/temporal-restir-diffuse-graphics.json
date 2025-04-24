@@ -157,6 +157,20 @@
             "shader_stage": "fragment",
             "usage": "write_only_storage",
             "external": "true"
+        },
+        {
+            "name": "irradianceCacheQueueCounter",
+            "type": "buffer",
+            "shader_stage": "all",
+            "usage": "read_write_storage",
+            "external": "true"
+        },
+        {
+            "name": "irradianceCacheQueue",
+            "type": "buffer",
+            "shader_stage": "all",
+            "usage": "read_write_storage",
+            "external": "true"
         }
     ],
     "BlendStates": [

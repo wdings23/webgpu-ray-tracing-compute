@@ -717,6 +717,7 @@ namespace Render
             setupFontPipeline();
         }
 
+#if 0
         {
             wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA32Float};
             wgpu::TextureDescriptor textureDesc = {};
@@ -732,6 +733,9 @@ namespace Render
             textureDesc.viewFormats = aViewFormats;
             maTextures["sampleRadianceTexture"] = mpDevice->CreateTexture(&textureDesc);
         }
+#endif // #if 0
+
+
         // bvh
         {
             auto fileExtensionStart = desc.mMeshFilePath.rfind(".");
@@ -754,75 +758,182 @@ namespace Render
             maBuffers["bvhNodes"].SetLabel("BVH Buffer");
             mpDevice->GetQueue().WriteBuffer(maBuffers["bvhNodes"], 0, acBVHData, iFileSize);
 
-            {
-#if defined(__EMSCRIPTEN__)
-                char* acImageData = nullptr;
-                uint32_t iFileSize = Loader::loadFile(&acImageData, "blue-noise.png");
-#else
-                std::vector<char> acBlueNoiseImageDataV;
-                Loader::loadFile(acBlueNoiseImageDataV, "blue-noise.png");
-                char* acImageData = acBlueNoiseImageDataV.data();
-                uint32_t iFileSize = (uint32_t)acBlueNoiseImageDataV.size();
-#endif // __EMSCRIPTEN__
-
-                int32_t iImageWidth = 0, iImageHeight = 0, iNumComp = 0;
-                stbi_uc* pImageData = stbi_load_from_memory((stbi_uc const*)acImageData, iFileSize, &iImageWidth, &iImageHeight, &iNumComp, 4);
-
-                wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
-                wgpu::TextureDescriptor textureDesc = {};
-                textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-                textureDesc.dimension = wgpu::TextureDimension::e2D;
-                textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-                textureDesc.mipLevelCount = 1;
-                textureDesc.sampleCount = 1;
-                textureDesc.size.depthOrArrayLayers = 1;
-                textureDesc.size.width = iImageWidth;
-                textureDesc.size.height = iImageHeight;
-                textureDesc.viewFormatCount = 1;
-                textureDesc.viewFormats = aViewFormats;
-                maTextures["blueNoiseTexture"] = mpDevice->CreateTexture(&textureDesc);
-
-#if defined(__EMSCRIPTEN__)
-                wgpu::TextureDataLayout layout = {};
-#else
-                wgpu::TexelCopyBufferLayout layout = {};
-#endif // __EMSCRIPTEN__
-                layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
-                layout.offset = 0;
-                layout.rowsPerImage = iImageHeight;
-                wgpu::Extent3D extent = {};
-                extent.depthOrArrayLayers = 1;
-                extent.width = iImageWidth;
-                extent.height = iImageHeight;
-
-#if defined(__EMSCRIPTEN__)
-                wgpu::ImageCopyTexture destination = {};
-#else 
-                wgpu::TexelCopyTextureInfo destination = {};
-#endif // __EMSCRIPTEN__
-                destination.aspect = wgpu::TextureAspect::All;
-                destination.mipLevel = 0;
-                destination.origin = {.x = 0, .y = 0, .z = 0};
-                destination.texture = maTextures["blueNoiseTexture"];
-                device.GetQueue().WriteTexture(
-                    &destination,
-                    pImageData,
-                    iImageWidth* iImageHeight * 4,
-                    &layout,
-                    &extent);
-
-                mpDevice->GetQueue().WriteTexture(
-                    &destination, 
-                    pImageData, 
-                    iImageWidth * iImageHeight * 4, 
-                    &layout, 
-                    &extent);
-            }
-
 #if defined(__EMSCRIPTEN__)
             free(acBVHData);
 #endif // __EMSCRIPTEN__
         }
+
+        // external data from external-data.json
+        {
+            rapidjson::Document doc;
+
+#if defined(__EMSCRIPTEN__)
+            char* acFileContentBuffer = nullptr;
+            Loader::loadFile(
+                &acFileContentBuffer,
+                "render-jobs/" + desc.mRenderJobPipelineFilePath,
+                true
+            );
+
+            doc.Parse(acFileContentBuffer);
+            Loader::loadFileFree(acFileContentBuffer);
+#else 
+            std::vector<char> acFileContentBuffer;
+            Loader::loadFile(
+                acFileContentBuffer,
+                "render-jobs/external-data.json",
+                true
+            );
+
+            doc.Parse(acFileContentBuffer.data());
+#endif //__EMSCRIPTEN__
+
+            auto externalDataEntries = doc["External Data"].GetArray();
+            for(auto& externalDataEntry : externalDataEntries)
+            {
+                std::string name = externalDataEntry["Name"].GetString();
+                std::string type = externalDataEntry["Type"].GetString();
+
+                if(type == "Buffer")
+                {
+                    uint32_t iSize = 0;
+                    if(externalDataEntry.HasMember("Size"))
+                    {
+                        iSize = (uint32_t)externalDataEntry["Size"].GetUint();
+                    }
+
+                    bufferDesc = {};
+                    bufferDesc.size = iSize;
+                    bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage;
+                    maBuffers[name] = mpDevice->CreateBuffer(&bufferDesc);
+                    maBuffers[name].SetLabel(name.c_str());
+                }
+                else if(type == "Texture")
+                {
+                    std::string fileName = externalDataEntry["File"].GetString();
+
+#if defined(__EMSCRIPTEN__)
+                    char* acImageData = nullptr;
+                    uint32_t iFileSize = Loader::loadFile(&acImageData, fileName);
+#else
+                    std::vector<char> acBlueNoiseImageDataV;
+                    Loader::loadFile(acBlueNoiseImageDataV, fileName);
+                    char* acImageData = acBlueNoiseImageDataV.data();
+                    uint32_t iFileSize = (uint32_t)acBlueNoiseImageDataV.size();
+#endif // __EMSCRIPTEN__
+
+                    int32_t iImageWidth = 0, iImageHeight = 0, iNumComp = 0;
+                    stbi_uc* pImageData = stbi_load_from_memory((stbi_uc const*)acImageData, iFileSize, &iImageWidth, &iImageHeight, &iNumComp, 4);
+
+                    wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA8Unorm};
+                    wgpu::TextureDescriptor textureDesc = {};
+                    textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+                    textureDesc.dimension = wgpu::TextureDimension::e2D;
+                    textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+                    textureDesc.mipLevelCount = 1;
+                    textureDesc.sampleCount = 1;
+                    textureDesc.size.depthOrArrayLayers = 1;
+                    textureDesc.size.width = iImageWidth;
+                    textureDesc.size.height = iImageHeight;
+                    textureDesc.viewFormatCount = 1;
+                    textureDesc.viewFormats = aViewFormats;
+                    maTextures[name] = mpDevice->CreateTexture(&textureDesc);
+
+#if defined(__EMSCRIPTEN__)
+                    wgpu::TextureDataLayout layout = {};
+#else
+                    wgpu::TexelCopyBufferLayout layout = {};
+#endif // __EMSCRIPTEN__
+                    layout.bytesPerRow = iImageWidth * 4 * sizeof(char);
+                    layout.offset = 0;
+                    layout.rowsPerImage = iImageHeight;
+                    wgpu::Extent3D extent = {};
+                    extent.depthOrArrayLayers = 1;
+                    extent.width = iImageWidth;
+                    extent.height = iImageHeight;
+
+#if defined(__EMSCRIPTEN__)
+                    wgpu::ImageCopyTexture destination = {};
+#else 
+                    wgpu::TexelCopyTextureInfo destination = {};
+#endif // __EMSCRIPTEN__
+                    destination.aspect = wgpu::TextureAspect::All;
+                    destination.mipLevel = 0;
+                    destination.origin = {.x = 0, .y = 0, .z = 0};
+                    destination.texture = maTextures[name];
+                    device.GetQueue().WriteTexture(
+                        &destination,
+                        pImageData,
+                        iImageWidth* iImageHeight * 4,
+                        &layout,
+                        &extent);
+
+                    mpDevice->GetQueue().WriteTexture(
+                        &destination,
+                        pImageData,
+                        iImageWidth* iImageHeight * 4,
+                        &layout,
+                        &extent);
+                }
+                else if(type == "Render Target")
+                {
+                    wgpu::TextureDescriptor textureDesc = {};
+                    textureDesc.format = wgpu::TextureFormat::RGBA32Float;
+
+                    std::string format = externalDataEntry["Format"].GetString();
+                    if(format == "rgba32float")
+                    {
+                        textureDesc.format = wgpu::TextureFormat::RGBA32Float;
+                    }
+                    else if(format == "rgba16float")
+                    {
+                        textureDesc.format = wgpu::TextureFormat::RGBA16Float;
+                    }
+                    else if(format == "rg32float")
+                    {
+                        textureDesc.format = wgpu::TextureFormat::RG32Float;
+                    }
+                    else if(format == "r32float")
+                    {
+                        textureDesc.format = wgpu::TextureFormat::R32Float;
+                    }
+                    else
+                    {
+                        assert(!"not handled");
+                    }
+
+                    uint32_t iWidth = desc.miScreenWidth;
+                    uint32_t iHeight = desc.miScreenHeight;
+
+                    
+                    if(externalDataEntry.HasMember("ScaleWidth"))
+                    {
+                        float fScaleX = externalDataEntry["ScaleWidth"].GetFloat();
+                        iWidth = (uint32_t)(float(iWidth) * fScaleX);
+                    }
+                    if(externalDataEntry.HasMember("ScaleHeight"))
+                    {
+                        float fScaleY = externalDataEntry["ScaleHeight"].GetFloat();
+                        iHeight = (uint32_t)(float(iWidth) * fScaleY);
+                    }
+
+                    wgpu::TextureFormat aViewFormats[] = {textureDesc.format};
+                    
+                    textureDesc.usage = wgpu::TextureUsage::StorageBinding | wgpu::TextureUsage::TextureBinding;
+                    textureDesc.dimension = wgpu::TextureDimension::e2D;
+                    textureDesc.mipLevelCount = 1;
+                    textureDesc.sampleCount = 1;
+                    textureDesc.size.depthOrArrayLayers = 1;
+                    textureDesc.size.width = desc.miScreenWidth;
+                    textureDesc.size.height = desc.miScreenHeight;
+                    textureDesc.viewFormatCount = 1;
+                    textureDesc.viewFormats = aViewFormats;
+                    maTextures[name] = mpDevice->CreateTexture(&textureDesc);
+                }
+            }
+
+        }
+
 
         createRenderJobs(desc);
 

@@ -113,7 +113,15 @@ struct DirectSunLightResult
 struct IrradianceCacheEntry
 {
     mPosition:              vec4<f32>,
-    mImageProbe:            array<vec4<f32>, 64>,            // 8x8 image probe
+    mSHCoefficients0:       vec4<f32>,        
+    mSHCoefficients1:       vec4<f32>,        
+    mSHCoefficients2:       vec4<f32>         
+};
+
+struct IrradianceCacheQueueEntry
+{
+    mPosition: vec4<f32>,
+    mNormal: vec4<f32>
 };
 
 struct DefaultUniformData
@@ -213,9 +221,15 @@ var blueNoiseTexture: texture_2d<f32>;
 var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(6)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var<storage, read_write> aiIrradianceCacheCounter: array<atomic<u32>>;
 
 @group(1) @binding(7)
+var<storage, read_write> aIrradianceCacheQueue: array<IrradianceCacheQueueEntry>;
+
+@group(1) @binding(8)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(9)
 var textureSampler: sampler;
 
 @vertex
@@ -842,6 +856,13 @@ fn temporalRestir(
                 candidateRadiance.x = irradianceCacheProbeRadiance.x * fReflectivity;
                 candidateRadiance.y = irradianceCacheProbeRadiance.y * fReflectivity;
                 candidateRadiance.z = irradianceCacheProbeRadiance.z * fReflectivity;
+            }
+            else 
+            {
+                // register to the irradiance cache queue
+                let iIrradianceCacheQueueIndex: u32 = atomicAdd(&aiIrradianceCacheCounter[0], 1u);
+                aIrradianceCacheQueue[iIrradianceCacheQueueIndex].mPosition = vec4<f32>(hitPosition.xyz, 1.0f);
+                aIrradianceCacheQueue[iIrradianceCacheQueueIndex].mNormal = vec4<f32>(intersectionInfo.mHitNormal.xyz, 1.0f);
             }
         }
     }    

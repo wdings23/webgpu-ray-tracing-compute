@@ -1,0 +1,29 @@
+{
+    "External Data": [
+        {
+            "Name": "irradianceCacheQueueCounter",
+            "Type": "Buffer",
+            "Size": 256
+        },
+        {
+            "Name": "irradianceCacheQueue",
+            "Type": "Buffer",
+            "Size": 1048576
+        },
+        {
+            "Name": "irradianceCache",
+            "Type": "Buffer",
+            "Size": 4194304
+        },
+        {
+            "Name": "blueNoiseTexture",
+            "Type": "Texture",
+            "File": "blue-noise.png" 
+        },
+        {
+            "Name": "sampleRadianceTexture",
+            "Type": "Render Target",
+            "Format": "rgba32float"
+        }
+    ]
+}
