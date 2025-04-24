@@ -112,7 +112,7 @@ namespace Render
         mpDevice = desc.mpDevice;
         wgpu::Device& device = *mpDevice;
 
-        
+
 #if defined(__EMSCRIPTEN__)
         char* acTriangleBuffer = nullptr;
         uint64_t iSize = Loader::loadFile(&acTriangleBuffer, desc.mMeshFilePath + "-triangles.bin");
@@ -123,7 +123,7 @@ namespace Render
         Loader::loadFile(acTriangleBuffer, desc.mMeshFilePath + "-triangles.bin");
         uint32_t const* piData = (uint32_t const*)acTriangleBuffer.data();
 #endif // __EMSCRIPTEN__
-        
+
         uint32_t iNumMeshes = *piData++;
         uint32_t iNumTotalVertices = *piData++;
         uint32_t iNumTotalTriangles = *piData++;
@@ -287,9 +287,9 @@ namespace Render
         maBuffers["full-screen-triangle"].SetLabel("Full Screen Triangle Buffer");
         maBufferSizes["full-screen-triangle"] = (uint32_t)bufferDesc.size;
         device.GetQueue().WriteBuffer(
-            maBuffers["full-screen-triangle"], 
-            0, 
-            aFullScreenTriangles, 
+            maBuffers["full-screen-triangle"],
+            0,
+            aFullScreenTriangles,
             3 * sizeof(Vertex));
 
         bufferDesc.size = 256 * sizeof(float2);
@@ -299,7 +299,7 @@ namespace Render
         maBufferSizes["blueNoiseBuffer"] = (uint32_t)bufferDesc.size;
 
         mpSampler = desc.mpSampler;
-        
+
         struct TextureAtlasInfo
         {
             uint2               miTextureCoord;
@@ -335,7 +335,7 @@ namespace Render
             maTextures["totalDiffuseTextures"] = device.CreateTexture(&textureDesc);
             mDiffuseTextureAtlas = maTextures["totalDiffuseTextures"];
 
-            
+
 #if defined(__EMSCRIPTEN__)
             char* acTextureNames = nullptr;
             uint32_t iSize = Loader::loadFile(&acTextureNames, desc.mMeshFilePath + "-texture-names.tex");
@@ -564,7 +564,7 @@ namespace Render
             maBuffers["diffuseTextureAtlasInfoBuffer"],
             0,
             aTextureAtlasInfo.data(),
-            sizeof(TextureAtlasInfo)* (uint32_t)aTextureAtlasInfo.size()
+            sizeof(TextureAtlasInfo) * (uint32_t)aTextureAtlasInfo.size()
         );
 
         // font atlas
@@ -629,7 +629,7 @@ namespace Render
             device.GetQueue().WriteTexture(
                 &destination,
                 pImageData,
-                iImageWidth* iImageHeight * 4,
+                iImageWidth * iImageHeight * 4,
                 &layout,
                 &extent);
             stbi_image_free(pImageData);
@@ -643,9 +643,9 @@ namespace Render
             viewDesc.format = wgpu::TextureFormat::RGBA8Unorm;
             viewDesc.label = "Font Texture Atlas";
             viewDesc.mipLevelCount = 1;
-            #if !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
             viewDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-            #endif // __EMSCRIPTEN__
+#endif // __EMSCRIPTEN__
             maTextureViews["font-atlas-image"] = maTextures["font-atlas-image"].CreateView(&viewDesc);
 
 #if defined(__EMSCRIPTEN__)
@@ -717,6 +717,21 @@ namespace Render
             setupFontPipeline();
         }
 
+        {
+            wgpu::TextureFormat aViewFormats[] = {wgpu::TextureFormat::RGBA32Float};
+            wgpu::TextureDescriptor textureDesc = {};
+            textureDesc.usage = wgpu::TextureUsage::StorageBinding | wgpu::TextureUsage::TextureBinding;
+            textureDesc.dimension = wgpu::TextureDimension::e2D;
+            textureDesc.format = wgpu::TextureFormat::RGBA32Float;
+            textureDesc.mipLevelCount = 1;
+            textureDesc.sampleCount = 1;
+            textureDesc.size.depthOrArrayLayers = 1;
+            textureDesc.size.width = desc.miScreenWidth;
+            textureDesc.size.height = desc.miScreenHeight;
+            textureDesc.viewFormatCount = 1;
+            textureDesc.viewFormats = aViewFormats;
+            maTextures["sampleRadianceTexture"] = mpDevice->CreateTexture(&textureDesc);
+        }
         // bvh
         {
             auto fileExtensionStart = desc.mMeshFilePath.rfind(".");

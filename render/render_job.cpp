@@ -736,23 +736,21 @@ namespace Render
             bindGroupEntry.binding = iIndex;
             if(uniformType == "texture")
             {
-                bindingLayout.texture.multisampled = false;
-                bindingLayout.texture.sampleType = wgpu::TextureSampleType::Float;
-                bindingLayout.texture.viewDimension = wgpu::TextureViewDimension::e2D;
+                if(uniformUsage == "read_write_storage")
+                {
+                    bindingLayout.storageTexture.access = wgpu::StorageTextureAccess::WriteOnly;
+                    bindingLayout.storageTexture.format = wgpu::TextureFormat::RGBA32Float;
+                    bindingLayout.storageTexture.viewDimension = wgpu::TextureViewDimension::e2D;
+                }
+                else
+                {
+                    bindingLayout.texture.multisampled = false;
+                    bindingLayout.texture.sampleType = wgpu::TextureSampleType::Float;
+                    bindingLayout.texture.viewDimension = wgpu::TextureViewDimension::e2D;
+                }
 
-                /*/if(uniformUsage == "texture_array")
-                {
-                    if(uniformName == "totalDiffuseTextures")
-                    {
-                        bindGroupEntry.textureView = *createInfo.mpTotalDiffuseTextureView;
-                    }
-                }
-                else*/
-                {
-                    bindGroupEntry.textureView = mUniformTextures[uniformName].CreateView();
-                }
+                bindGroupEntry.textureView = mUniformTextures[uniformName].CreateView();
                 
-
                 DEBUG_PRINTF("\tgroup 1 binding %d texture \"%s\"\n",
                     (uint32_t)aaBindGroupLayoutEntries[1].size(),
                     uniformName.c_str());

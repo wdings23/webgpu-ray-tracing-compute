@@ -66,6 +66,7 @@ struct TemporalRestirResult
     mRadiance: vec4<f32>,
     mReservoir: vec4<f32>,
     mRayDirection: vec4<f32>,
+    mSampleRadiance: vec4<f32>,
     mAmbientOcclusion: vec4<f32>,
     mHitPosition: vec4<f32>,
     mHitNormal: vec4<f32>,
@@ -209,6 +210,9 @@ var<storage, read> aiSceneTriangleIndices: array<u32>;
 var blueNoiseTexture: texture_2d<f32>;
 
 @group(1) @binding(5)
+var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
+
+@group(1) @binding(6)
 var<uniform> defaultUniformBuffer: DefaultUniformData;
 
 @vertex
@@ -378,6 +382,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         //out.rayDirection = vec4<f32>(sampleRayDirection.xyz, fIntersection);
         out.sampleRayHitPosition = vec4<f32>(result.mIntersectionResult.mHitPosition, fIntersection);
         out.sampleRayDirection = vec4<f32>(sampleRayDirection, fIntersection);
+    
+        textureStore(
+            sampleRadianceTexture, 
+            screenCoord,
+            result.mSampleRadiance);
     }
 
     var firstResult: TemporalRestirResult = result;
@@ -835,6 +844,8 @@ fn temporalRestir(
     candidateRadiance.y = candidateRadiance.y * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
     candidateRadiance.z = candidateRadiance.z * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
     
+    ret.mSampleRadiance = candidateRadiance;
+
     // reservoir
     let fLuminance: f32 = computeLuminance(
         ToneMapFilmic_Hejl2015(
