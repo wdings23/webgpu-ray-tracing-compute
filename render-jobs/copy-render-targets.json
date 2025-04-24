@@ -101,6 +101,13 @@
             "ParentJobName": "Spherical Harmonics Diffuse Graphics",
             "ParentName": "Spherical Harmonics 2 Output",
             "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Spherical Harmonics Radiance Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Diffuse Graphics",
+            "ParentName": "Inverse Spherical Harmonics Output",
+            "Format": "rgba32float"
         }
     ]
 }

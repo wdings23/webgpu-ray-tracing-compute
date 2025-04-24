@@ -81,6 +81,11 @@
             "ParentJobName": "Copy Render Targets"
         },
         {
+            "Name": "Previous Spherical Harmonics Radiance Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Copy Render Targets"
+        },
+        {
             "Name": "Motion Vector Output",
             "Type": "TextureInput",
             "ParentJobName": "Deferred Indirect Graphics"

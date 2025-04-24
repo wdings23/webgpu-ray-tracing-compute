@@ -59,9 +59,12 @@ var prevSphericalHarmonicCoefficientTexture1: texture_2d<f32>;
 var prevSphericalHarmonicCoefficientTexture2: texture_2d<f32>;
 
 @group(0) @binding(11)
-var motionVectorTexture: texture_2d<f32>;
+var prevSphericalHarmonicsRadianceTexture: texture_2d<f32>;
 
 @group(0) @binding(12)
+var motionVectorTexture: texture_2d<f32>;
+
+@group(0) @binding(13)
 var prevMotionVectorTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
@@ -164,30 +167,59 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         u32(prevScreenUV.y * f32(textureSize.y))
     );
 
+    let bDisoccluded: bool = isDisoccluded2(in.uv.xy, prevScreenUV);
+    let fDisocclusion: f32 = f32(bDisoccluded == false);
+
+    var fHistoryCount = textureLoad(
+        prevSphericalHarmonicsRadianceTexture,
+        prevScreenCoord,
+        0).w;
+    fHistoryCount *= fDisocclusion;
+    fHistoryCount = max(fHistoryCount, 1.0f);
+
+    var SHCoefficent0: vec4<f32> = textureLoad(
+        prevSphericalHarmonicCoefficientTexture0,
+        prevScreenCoord,
+        0
+    ) * fDisocclusion;
+    var SHCoefficent1: vec4<f32> = textureLoad(
+        prevSphericalHarmonicCoefficientTexture1,
+        prevScreenCoord,
+        0
+    ) * fDisocclusion;
+    var SHCoefficent2: vec4<f32> = textureLoad(
+        prevSphericalHarmonicCoefficientTexture2,
+        prevScreenCoord,
+        0
+    ) * fDisocclusion;
+
     var shOutput: SHOutput = encodeSphericalHarmonics(
         sampleRadiance.xyz,
         sampleRayDirection.xyz,
-        screenCoord,
-        prevScreenCoord
+        SHCoefficent0,
+        SHCoefficent1,
+        SHCoefficent2
     );
-
+    
     shOutput = encodeSphericalHarmonics(
         radiance.xyz,
         rayDirection.xyz,
-        screenCoord,
-        prevScreenCoord
+        shOutput.mCoefficients0,
+        shOutput.mCoefficients1,
+        shOutput.mCoefficients2
     );
 
     let decodedSH: vec3<f32> = decodeFromSphericalHarmonicCoefficients(
         shOutput,
         normal.xyz,
-        vec3<f32>(10.0f, 10.0f, 10.0f)
+        vec3<f32>(10.0f, 10.0f, 10.0f),
+        fHistoryCount
     );
 
     output.sphericalHarmonics0 = shOutput.mCoefficients0;
     output.sphericalHarmonics1 = shOutput.mCoefficients1;
     output.sphericalHarmonics2 = shOutput.mCoefficients2;
-    output.inverseSphericalHarmonics = vec4<f32>(decodedSH.xyz, 1.0f);
+    output.inverseSphericalHarmonics = vec4<f32>(decodedSH.xyz, fHistoryCount + 1.0f);
 
     return output;
 }
@@ -198,30 +230,19 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 fn encodeSphericalHarmonics(
     radiance: vec3<f32>,
     direction: vec3<f32>,
-    inputCoord: vec2<u32>,
-    prevInputCoord: vec2<u32>
+    SHCoefficent0: vec4<f32>,
+    SHCoefficent1: vec4<f32>,
+    SHCoefficent2: vec4<f32>
 ) -> SHOutput
 {
     var output: SHOutput;
 
-    let fDstPct: f32 = 1.5f;
-    let fSrcPct: f32 = 0.7f;
+    output.mCoefficients0 = SHCoefficent0;
+    output.mCoefficients1 = SHCoefficent1;
+    output.mCoefficients2 = SHCoefficent2;
 
-    var SHCoefficent0: vec4<f32> = textureLoad(
-        prevSphericalHarmonicCoefficientTexture0,
-        prevInputCoord,
-        0
-    ) * fSrcPct;
-    var SHCoefficent1: vec4<f32> = textureLoad(
-        prevSphericalHarmonicCoefficientTexture1,
-        prevInputCoord,
-        0
-    ) * fSrcPct;
-    var SHCoefficent2: vec4<f32> = textureLoad(
-        prevSphericalHarmonicCoefficientTexture2,
-        prevInputCoord,
-        0
-     ) * fSrcPct;
+    let fDstPct: f32 = 1.0f;
+    let fSrcPct: f32 = 1.0f;
 
     let afC: vec4<f32> = vec4<f32>(
         0.282095f,
@@ -251,24 +272,20 @@ fn encodeSphericalHarmonics(
     aResults[1] = radiance.xyz * coefficient.y * fDstPct;
     aResults[2] = radiance.xyz * coefficient.z * fDstPct;
     aResults[3] = radiance.xyz * coefficient.w * fDstPct;
-    SHCoefficent0.x += aResults[0].x;
-    SHCoefficent0.y += aResults[0].y;
-    SHCoefficent0.z += aResults[0].z;
-    SHCoefficent0.w += aResults[1].x;
+    output.mCoefficients0.x += aResults[0].x;
+    output.mCoefficients0.y += aResults[0].y;
+    output.mCoefficients0.z += aResults[0].z;
+    output.mCoefficients0.w += aResults[1].x;
 
-    SHCoefficent1.x += aResults[1].y;
-    SHCoefficent1.y += aResults[1].z;
-    SHCoefficent1.z += aResults[2].x;
-    SHCoefficent1.w += aResults[2].y;
+    output.mCoefficients1.x += aResults[1].y;
+    output.mCoefficients1.y += aResults[1].z;
+    output.mCoefficients1.z += aResults[2].x;
+    output.mCoefficients1.w += aResults[2].y;
 
-    SHCoefficent2.x += aResults[2].z;
-    SHCoefficent2.y += aResults[3].x;
-    SHCoefficent2.z += aResults[3].y;
-    SHCoefficent2.w += aResults[3].z;
-
-    output.mCoefficients0 = SHCoefficent0;
-    output.mCoefficients1 = SHCoefficent1;
-    output.mCoefficients2 = SHCoefficent2;
+    output.mCoefficients2.x += aResults[2].z;
+    output.mCoefficients2.y += aResults[3].x;
+    output.mCoefficients2.z += aResults[3].y;
+    output.mCoefficients2.w += aResults[3].z;
 
     return output;
 }
@@ -279,7 +296,8 @@ fn encodeSphericalHarmonics(
 fn decodeFromSphericalHarmonicCoefficients(
     shOutput: SHOutput,
     direction: vec3<f32>,
-    maxRadiance: vec3<f32>
+    maxRadiance: vec3<f32>,
+    fHistoryCount: f32
 ) -> vec3<f32>
 {
     var SHCoefficent0: vec4<f32> = shOutput.mCoefficients0;
@@ -303,6 +321,7 @@ fn decodeFromSphericalHarmonicCoefficients(
         aTotalCoefficients[0] * fC4 +
         (aTotalCoefficients[3] * direction.x + aTotalCoefficients[1] * direction.y + aTotalCoefficients[2] * direction.z) *
         fC2 * 2.0f;
+    decoded /= fHistoryCount;
     decoded = clamp(decoded, vec3<f32>(0.0f, 0.0f, 0.0f), maxRadiance);
 
     return decoded;
@@ -365,5 +384,5 @@ fn isDisoccluded2(
     let iPrevMesh: u32 = u32(ceil(prevMotionVectorAndMeshIDAndDepth.z - 0.5f)) - 1;
     var fCheckWorldPositionDistance: f32 = dot(worldPositionDiff, worldPositionDiff);
 
-    return !(iMesh == iPrevMesh && fCheckDepth <= 0.01f && fCheckWorldPositionDistance <= 0.01f && fCheckDP >= 0.99f);
+    return !((iMesh == iPrevMesh) && (fDepth == fPrevDepth));
 }
