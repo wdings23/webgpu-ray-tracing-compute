@@ -200,6 +200,10 @@ namespace Render
                         {
                             bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc;
                         }
+                        else if(shaderUsage == "write_only_storage")
+                        {
+                            bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc;
+                        }
 
                         mUniformBuffers[shaderResourceName] = createInfo.mpDevice->CreateBuffer(&bufferDesc);
                     }
@@ -736,7 +740,7 @@ namespace Render
             bindGroupEntry.binding = iIndex;
             if(uniformType == "texture")
             {
-                if(uniformUsage == "read_write_storage")
+                if(uniformUsage == "write_only_storage")
                 {
                     bindingLayout.storageTexture.access = wgpu::StorageTextureAccess::WriteOnly;
                     bindingLayout.storageTexture.format = wgpu::TextureFormat::RGBA32Float;
@@ -787,7 +791,7 @@ namespace Render
             }
             else
             {
-                if(uniformUsage == "read_write_storage")
+                if(uniformUsage == "read_write_storage" || uniformUsage == "write_only_storage")
                 {
                     bindingLayout.visibility = wgpu::ShaderStage::Fragment;
                 }

@@ -150,7 +150,7 @@
             "name": "sampleRadianceTexture",
             "type": "texture",
             "shader_stage": "fragment",
-            "usage": "read_write_storage",
+            "usage": "write_only_storage",
             "external": "true"
         }
     ],
