@@ -106,6 +106,12 @@
             "PassType": "Full Triangle"
         },
         {
+            "Name": "Ray Tracing Composite Graphics",
+            "Pipeline": "ray-tracing-composite-graphics.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle"
+        },
+        {
             "Name": "TAA Graphics",
             "Pipeline": "taa-graphics.json",
             "Type": "Graphics",

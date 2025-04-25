@@ -28,7 +28,16 @@ struct DefaultUniformData
 };
 
 @group(0) @binding(0)
+var directRadianceTexture: texture_2d<f32>;
+
+@group(0) @binding(1)
+var diffuseRadianceTexture: texture_2d<f32>;
+
+@group(0) @binding(2)
 var rayDirectionTexture: texture_2d<f32>;
+
+@group(0) @binding(3)
+var materialTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
 var<uniform> defaultUniformBuffer: DefaultUniformData;
@@ -70,8 +79,28 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         in.uv.xy
     );
 
-    let fAO: f32 = rayDirection.w;
-    output.mRadiance = vec4<f32>(fAO, fAO, fAO, 1.0f);
+    let directRadiance: vec4<f32> = textureSample(
+        directRadianceTexture,
+        textureSampler,
+        in.uv.xy
+    );
+
+    let diffuseRadiance: vec4<f32> = textureSample(
+        diffuseRadianceTexture,
+        textureSampler,
+        in.uv.xy
+    );
+
+    let material: vec4<f32> = textureSample(
+        materialTexture,
+        textureSampler,
+        in.uv.xy
+    );
+
+    output.mRadiance = vec4<f32>(
+        material.xyz * ((directRadiance.xyz + diffuseRadiance.xyz) * rayDirection.w), 
+        1.0f
+    );
     return output;
 }
 

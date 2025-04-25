@@ -1,0 +1,54 @@
+{
+    "Type": "Graphics",
+    "PassType": "Full Triangle",
+    "Shader": "ray-tracing-composite-graphics.shader",
+    "Attachments": [
+        {
+            "Name" : "Ray Tracing Composite Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        
+        {
+            "Name": "Direct Radiance Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Direct Radiance Graphics"
+        },
+        {
+            "Name": "Inverse Spherical Harmonics Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Spherical Harmonics Diffuse Graphics"
+        },
+        {
+            "Name": "Sample Ray Direction Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics"
+        },
+        {
+            "Name": "Material Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        }
+    ],
+    "ShaderResources": [
+        
+    ],
+    "BlendStates": [
+        {
+            "Enabled": "True"
+        }
+    ],
+    "DepthStencilState":
+    {
+        "DepthEnable": "False",
+        "DepthWriteMask": "One",
+        "DepthFunc": "LessEqual",
+        "StencilEnable": "False"
+    },
+    "RasterState":
+    {
+        "FillMode": "Solid",
+        "CullMode": "None",
+        "FrontFace": "CounterClockwise"
+    }
+}
