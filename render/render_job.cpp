@@ -673,6 +673,10 @@ namespace Render
                 bindingLayout.texture.sampleType = wgpu::TextureSampleType::UnfilterableFloat;
                 bindingLayout.texture.viewDimension = wgpu::TextureViewDimension::e2D;
                 bindingLayout.visibility = wgpu::ShaderStage::Fragment;
+                if(mType == Render::JobType::Compute)
+                {
+                    bindingLayout.visibility = wgpu::ShaderStage::Compute;
+                }
 
                 wgpu::TextureView textureView = mInputImageAttachments[attachmentName]->CreateView();
                 bindGroupEntry.textureView = textureView;
@@ -697,7 +701,7 @@ namespace Render
             else if(attachmentType == "BufferInput")
             {
                 bindingLayout.buffer.type = wgpu::BufferBindingType::ReadOnlyStorage;
-                bindingLayout.buffer.minBindingSize = 64;
+                bindingLayout.buffer.minBindingSize = 0;
                 bindingLayout.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
                 if(mType == Render::JobType::Compute)
                 {
@@ -712,7 +716,7 @@ namespace Render
             else if(attachmentType == "BufferOutput")
             {
                 bindingLayout.buffer.type = wgpu::BufferBindingType::Storage;
-                bindingLayout.buffer.minBindingSize = 64;
+                bindingLayout.buffer.minBindingSize = 0;
                 bindingLayout.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
                 if(mType == Render::JobType::Compute)
                 {

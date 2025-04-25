@@ -39,6 +39,13 @@
             "PassType": "Full Triangle"
         },
         {
+            "Name": "Build Irradiance Cache Compute",
+            "Pipeline": "build-irradiance-cache-compute.json",
+            "Type": "Compute",
+            "PassType": "Compute",
+            "Dispatch": [1024, 1, 1]
+        },
+        {
             "Name": "Outline Graphics",
             "Pipeline": "outline-graphics.json",
             "Type": "Graphics",

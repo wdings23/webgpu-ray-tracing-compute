@@ -13,7 +13,7 @@
         {
             "Name" : "Reservoir Output",
             "Type": "TextureOutput",
-            "Format": "rgba32float",
+            "Format": "rgba16float",
             "ScaleWidth": 1.0,
             "ScaleHeight": 1.0
         },
@@ -33,6 +33,13 @@
         },
         {
             "Name": "Sample Ray Hit Position Output",
+            "Type": "TextureOutput",
+            "Format": "rgba16float",
+            "ScaleWidth": 1.0,
+            "ScaleHeight": 1.0
+        },
+        {
+            "Name": "Sample Ray Hit Normal Output",
             "Type": "TextureOutput",
             "Format": "rgba16float",
             "ScaleWidth": 1.0,
@@ -159,26 +166,13 @@
             "external": "true"
         },
         {
-            "name": "irradianceCacheQueueCounter",
-            "type": "buffer",
-            "shader_stage": "all",
-            "usage": "read_write_storage",
-            "external": "true"
-        },
-        {
-            "name": "irradianceCacheIndexQueue",
-            "type": "buffer",
-            "shader_stage": "all",
-            "usage": "read_write_storage",
-            "external": "true"
-        },
-        {
             "name": "irradianceCacheQueue",
             "type": "buffer",
             "shader_stage": "all",
             "usage": "read_write_storage",
             "external": "true"
         }
+        
     ],
     "BlendStates": [
         {

@@ -32,7 +32,7 @@ struct VertexFormat
 {
     mPosition : vec4<f32>,
     mTexCoord : vec4<f32>,
-    mNormal : vec4<f32> 
+    mNormal : vec4<f32>, 
 };
 
 struct VertexInput 
@@ -53,7 +53,8 @@ struct FragmentOutput
     @location(2) hitPosition: vec4<f32>,
     @location(3) hitNormal: vec4<f32>,
     @location(4) sampleRayHitPosition: vec4<f32>,
-    @location(5) sampleRayDirection: vec4<f32>
+    @location(5) sampleRayHitNormal: vec4<f32>,
+    @location(6) sampleRayDirection: vec4<f32>
 };
 
 struct UniformData
@@ -221,18 +222,12 @@ var blueNoiseTexture: texture_2d<f32>;
 var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(6)
-var<storage, read_write> aiIrradianceCacheCounter: array<atomic<u32>>;
+var<storage, read> irradianceCache: array<IrradianceCacheEntry>;
 
 @group(1) @binding(7)
-var<storage, read_write> aiIrradianceIndexQueue: array<u32>;
-
-@group(1) @binding(8)
-var<storage, read_write> aIrradianceCacheQueue: array<IrradianceCacheQueueEntry>;
-
-@group(1) @binding(9)
 var<uniform> defaultUniformBuffer: DefaultUniformData;
 
-@group(1) @binding(10)
+@group(1) @binding(8)
 var textureSampler: sampler;
 
 @vertex
@@ -859,17 +854,6 @@ fn temporalRestir(
                 candidateRadiance.x = irradianceCacheProbeRadiance.x * fReflectivity;
                 candidateRadiance.y = irradianceCacheProbeRadiance.y * fReflectivity;
                 candidateRadiance.z = irradianceCacheProbeRadiance.z * fReflectivity;
-            }
-            else 
-            {
-                // register to the irradiance cache queue
-                if(aIrradianceCacheQueue[iHitIrradianceCacheIndex].mPosition.w <= 0.0f)
-                {
-                    let iIrradianceCacheQueueIndex: u32 = atomicAdd(&aiIrradianceCacheCounter[0], 1u);
-                    aiIrradianceIndexQueue[iIrradianceCacheQueueIndex] = iHitIrradianceCacheIndex;
-                    aIrradianceCacheQueue[iHitIrradianceCacheIndex].mPosition = vec4<f32>(hitPosition.xyz, 1.0f);
-                    aIrradianceCacheQueue[iHitIrradianceCacheIndex].mNormal = vec4<f32>(intersectionInfo.mHitNormal.xyz, 1.0f);
-                }
             }
         }
     }    

@@ -57,7 +57,7 @@
             "Type": "TextureOutput",
             "ParentJobName": "Diffuse Temporal Restir Graphics",
             "ParentName": "Reservoir Output",
-            "Format": "rgba32float"
+            "Format": "rgba16float"
         },
         {
             "Name": "Previous Temporal Restir Radiance Output",

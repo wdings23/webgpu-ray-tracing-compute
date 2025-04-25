@@ -1,0 +1,87 @@
+{
+    "Type": "Compute",
+    "PassType": "Compute",
+    "Shader": "build-irradiance-cache-compute.shader",
+    "Attachments": [
+        {
+            "Name" : "Irradiance Cache",
+            "Type": "BufferOutput",
+            "Size": 16777216
+        },
+
+        {
+            "Name": "Sample Ray Hit Position Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics"
+        },
+        {
+            "Name": "Sample Ray Hit Normal Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics"
+        },
+        {
+            "Name": "Sky Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Atmosphere Graphics"
+        },
+        {
+            "Name": "Sun Light Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Atmosphere Graphics"
+        },
+        {
+            "Name" : "World Position Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "Normal Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        }
+    ],
+    "ShaderResources": [
+        {
+            "name": "irradianceCacheQueueCounter",
+            "type": "buffer",
+            "shader_stage": "all",
+            "usage": "read_write_storage",
+            "external": "true"
+        },
+        {
+            "name": "irradianceCacheIndexQueue",
+            "type": "buffer",
+            "shader_stage": "all",
+            "usage": "read_write_storage",
+            "external": "true"
+        },
+        {
+            "name": "irradianceCacheQueue",
+            "type": "buffer",
+            "shader_stage": "all",
+            "usage": "read_write_storage",
+            "external": "true"
+        },
+        { 
+            "name" : "bvhNodes",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        },
+        { 
+            "name" : "train-vertex-buffer",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        },
+        { 
+            "name" : "train-index-buffer",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        }
+    ]
+}
