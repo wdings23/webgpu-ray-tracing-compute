@@ -136,7 +136,7 @@ namespace Render
     */
     void CRenderer::draw(DrawUpdateDescriptor& desc)
     {
-        static float3 sLightDirection = normalize(float3(-1.0f, 1.0f, 0.0f));
+        static float3 sLightDirection = normalize(float3(-0.25f, 1.0f, 0.0f));
 
         DefaultUniformData defaultUniformData;
         defaultUniformData.mViewMatrix = *desc.mpViewMatrix;
@@ -151,7 +151,7 @@ namespace Render
         defaultUniformData.mCameraPosition = float4(mCameraPosition, 1.0f);
         defaultUniformData.mCameraLookDir = float4(mCameraLookAt, 1.0f);
         defaultUniformData.miNumMeshes = (uint32_t)maMeshTriangleRanges.size();
-        defaultUniformData.mLightRadiance = float4(10.0f, 10.0f, 10.0f, 1.0f);
+        defaultUniformData.mLightRadiance = float4(100.0f, 100.0f, 100.0f, 1.0f);
 
         //sLightDirection = sLightDirection + float3(0.01f, 0.0f, -0.00f);
         defaultUniformData.mLightDirection = float4(normalize(sLightDirection), 1.0f);
