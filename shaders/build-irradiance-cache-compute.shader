@@ -192,8 +192,6 @@ fn cs_main(
         10u);
 
     updateIrradianceCache(
-        worldPosition.xyz,
-        normal.xyz,
         hitPosition.xyz,
         hitNormal.xyz,
         randomResult,
@@ -206,8 +204,6 @@ fn cs_main(
 **
 */
 fn updateIrradianceCache(
-    worldPosition: vec3<f32>,
-    normal: vec3<f32>,
     hitPosition: vec3<f32>,
     hitNormal: vec3<f32>,
     randomResult: RandomResult,
@@ -281,7 +277,7 @@ fn updateIrradianceCache(
     if(intersectionInfo.miHitTriangle == UINT32_MAX || fRayLength >= 100.0f)
     {
         // didn't hit anything, use skylight
-        let fRadianceDP: f32 = max(dot(normal.xyz, ray.mDirection.xyz), 0.0f);
+        let fRadianceDP: f32 = max(dot(hitNormal.xyz, ray.mDirection.xyz), 0.0f);
         let skyUV: vec2<f32> = octahedronMap2(ray.mDirection.xyz);
 
         let skyTextureSize: vec2<u32> = textureDimensions(skyTexture);
@@ -473,6 +469,17 @@ fn encodeSphericalHarmonicCoefficients(
     irradianceCache[iCacheEntryIndex].mSphericalHarmonics2 = SHCoefficent2;
 
     irradianceCache[iCacheEntryIndex].mSampleCount.x += 1.0f;
+
+    let kfMaxCount: f32 = 1000.0f;
+    if(irradianceCache[iCacheEntryIndex].mSampleCount.x > kfMaxCount)
+    {
+        let fPct: f32 = kfMaxCount / irradianceCache[iCacheEntryIndex].mSampleCount.x;
+        irradianceCache[iCacheEntryIndex].mSphericalHarmonics0 *= fPct;
+        irradianceCache[iCacheEntryIndex].mSphericalHarmonics1 *= fPct;
+        irradianceCache[iCacheEntryIndex].mSphericalHarmonics2 *= fPct;
+
+        irradianceCache[iCacheEntryIndex].mSampleCount.x = kfMaxCount;
+    }
 }
 
 /*
