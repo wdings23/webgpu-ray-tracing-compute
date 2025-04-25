@@ -194,21 +194,21 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     ) * fDisocclusion;
 
     var shOutput: SHOutput = encodeSphericalHarmonics(
-        sampleRadiance.xyz,
-        sampleRayDirection.xyz,
+        radiance.xyz,
+        rayDirection.xyz,
         SHCoefficent0,
         SHCoefficent1,
         SHCoefficent2
     );
-    
+
     shOutput = encodeSphericalHarmonics(
-        radiance.xyz,
-        rayDirection.xyz,
+        sampleRadiance.xyz,
+        sampleRayDirection.xyz,
         shOutput.mCoefficients0,
         shOutput.mCoefficients1,
         shOutput.mCoefficients2
     );
-
+    
     let decodedSH: vec3<f32> = decodeFromSphericalHarmonicCoefficients(
         shOutput,
         normal.xyz,

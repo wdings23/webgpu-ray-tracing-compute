@@ -52,6 +52,12 @@
             "PassType": "Full Triangle"
         },
         {
+            "Name": "Debug Ambient Occlusion Graphics",
+            "Pipeline": "debug-ambient-occlusion-graphics.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle"
+        },
+        {
             "Name": "Outline Graphics",
             "Pipeline": "outline-graphics.json",
             "Type": "Graphics",

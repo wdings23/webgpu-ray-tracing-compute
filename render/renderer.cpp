@@ -535,6 +535,35 @@ namespace Render
             (uint32_t)aCommandBuffer.size(), 
             aCommandBuffer.data());
 
+
+        // test test test
+        //{
+        //    uint2 blueNoiseTextureSize = uint2(256, 256);
+        //
+        //    uint32_t iTileSize = 32u;
+        //    uint32_t iNumTilesX = (blueNoiseTextureSize.x / iTileSize);
+        //    uint32_t iNumTilesY = (blueNoiseTextureSize.y / iTileSize);
+        //    uint32_t iNumTotalTiles = iNumTilesX * iNumTilesY;
+        //    uint32_t iTileIndex = (uint32_t(miFrame) * 4) / (iTileSize * iTileSize);
+        //    uint32_t iTileIndexX = iTileIndex % iNumTilesX;
+        //    uint32_t iTileIndexY = (iTileIndex / iNumTilesX) % iNumTilesY;
+        //
+        //    for(uint32_t iSample = 0; iSample < 4; iSample++)
+        //    {
+        //        uint32_t iTotalSampleIndex = uint32_t(miFrame) * 4 + iSample;
+        //        uint32_t iOffsetX = (iTotalSampleIndex % iTileSize) + iTileIndexX * iTileSize;
+        //        uint32_t iOffsetY = ((iTotalSampleIndex / iTileSize) % iTileSize) + iTileIndexY * iTileSize;
+        //
+        //        DEBUG_PRINTF("offset(%d, %d) tile (%d, %d) frame: %d\n",
+        //            iOffsetX,
+        //            iOffsetY,
+        //            iTileIndexX,
+        //            iTileIndexY,
+        //            miFrame);
+        //    }
+        //    int iDebug = 1;
+        //}
+
         ++miFrame;
     }
 
@@ -711,10 +740,12 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["TAA Graphics"]->mOutputImageAttachments["TAA Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments["Selection Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
-        wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
+        //wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Sample Ray Direction Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Spherical Harmonics Diffuse Graphics"]->mOutputImageAttachments["Inverse Spherical Harmonics Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Direct Radiance Graphics"]->mOutputImageAttachments["Direct Radiance Output"];
+        //wgpu::Texture& swapChainTexture = maRenderJobs["Debug Irradiance Cache Graphics"]->mOutputImageAttachments["Irradiance Cache Radiance Output"];
+        wgpu::Texture& swapChainTexture = maRenderJobs["Debug Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //assert(maRenderJobs.find("Mesh Selection Graphics") != maRenderJobs.end());
         //assert(maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.find("Selection Output") != maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.end());
 

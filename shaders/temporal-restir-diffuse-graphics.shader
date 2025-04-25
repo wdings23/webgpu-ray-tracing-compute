@@ -4,6 +4,7 @@ const PI: f32 = 3.14159f;
 const PROBE_IMAGE_SIZE: u32 = 8u;
 const VALIDATION_STEP: u32 = 16u;
 const RAY_LENGTH: f32 = 10.0f;
+const kMaxAmbientOcclusionCount: f32 = 50.0f;
 
 struct RandomResult 
 {
@@ -364,6 +365,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     var iTileIndexY: u32 = (iTileIndex / iNumTilesX) % iNumTilesY; 
 
     // center pixel sample
+    var fReservoirWeight: f32 = 1.0f;
     for(var iSample: i32 = 0; iSample < iNumCenterSamples; iSample++)
     {
         var sampleRayDirection: vec3f = vec3f(0.0f, 0.0f, 0.0f);
@@ -407,7 +409,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             0u,
             1.0f, 
             true);
-        
+
+        result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
         ambientOcclusionSample = result.mAmbientOcclusion;
 
         // record intersection triangle in w component
@@ -432,8 +435,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let fPlaneD: f32 = -dot(worldPosition.xyz, normal.xyz);
 
     // permutation samples
-    let iNumPermutations: i32 = 5; //uniformData.miNumTemporalRestirSamplePermutations + 1;
-    for(var iSample: i32 = 1; iSample < iNumPermutations; iSample++)
+    let iNumPermutations: i32 = uniformData.miNumTemporalRestirSamplePermutations + 1;
+    for(var iSample: i32 = 1; iSample < 5; iSample++)
     {
         var aXOR: array<vec2<i32>, 4>;
         aXOR[0] = vec2<i32>(3, 3);
@@ -566,22 +569,25 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     }   // for sample = 0 to num permutation samples   
 
     // intersection check to see if the neighbor's ray direction is blocked
-    var ray: Ray;
-    ray.mDirection = vec4<f32>(result.mRayDirection.xyz, 1.0f);
-    ray.mOrigin = vec4<f32>(worldPosition.xyz + result.mRayDirection.xyz * 0.01f, 1.0f);
-    var intersectionInfo: IntersectBVHResult;
-    intersectionInfo = intersectBVH4(ray, 0u);
-    if((length(result.mHitPosition.xyz) >= RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) < RAY_LENGTH) || 
-       (length(result.mHitPosition.xyz) < RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) >= RAY_LENGTH))
+    if(iNumPermutations > 0)
     {
-        result = firstResult;
+        var ray: Ray;
+        ray.mDirection = vec4<f32>(result.mRayDirection.xyz, 1.0f);
+        ray.mOrigin = vec4<f32>(worldPosition.xyz + result.mRayDirection.xyz * 0.01f, 1.0f);
+        var intersectionInfo: IntersectBVHResult;
+        intersectionInfo = intersectBVH4(ray, 0u);
+        if((length(result.mHitPosition.xyz) >= RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) < RAY_LENGTH) || 
+        (length(result.mHitPosition.xyz) < RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) >= RAY_LENGTH))
+        {
+            result = firstResult;
+        }
     }
 
     result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
 
-    var fReservoirWeight: f32 = result.mReservoir.w;
+    //var fReservoirWeight: f32 = result.mReservoir.w;
     
-    out.radianceOutput = result.mRadiance/* * fReservoirWeight*/;
+    out.radianceOutput = result.mRadiance * fReservoirWeight;
     out.temporalReservoir = result.mReservoir;
     //out.rayDirection = result.mRayDirection;
 
@@ -723,7 +729,19 @@ fn temporalRestir(
     );
 
     var fAmbientOcclusionHit: f32 = prevHitPosition.w;
-    let fAmbientOcclusionCount: f32 = prevHitNormal.w + 1.0f;
+    var fAmbientOcclusionCount: f32 = prevHitNormal.w + 1.0f;
+
+    
+    if(fAmbientOcclusionCount > kMaxAmbientOcclusionCount)
+    {
+        let fPct: f32 = kMaxAmbientOcclusionCount / fAmbientOcclusionCount;
+        fAmbientOcclusionHit *= fPct;
+        fAmbientOcclusionCount = kMaxAmbientOcclusionCount;
+    }
+
+    fAmbientOcclusionHit *= f32(iDisoccluded == 0);
+    fAmbientOcclusionCount *= f32(iDisoccluded == 0);
+    fAmbientOcclusionCount = max(fAmbientOcclusionCount, 1.0f);
 
     var ray: Ray;
     ray.mOrigin = vec4<f32>(worldPosition + rayDirection * 0.01f, 1.0f);
@@ -1497,6 +1515,8 @@ fn getPreviousScreenUV(
 
     var fShortestWorldDistance: f32 = FLT_MAX;
     var closestScreenUV: vec2<f32> = prevScreenUV;
+
+/*
     for(var iY: i32 = -1; iY <= 1; iY++)
     {
         for(var iX: i32 = -1; iX <= 1; iX++)
@@ -1535,6 +1555,7 @@ fn getPreviousScreenUV(
             }
         }
     }
+*/
 
     return closestScreenUV;
 }
@@ -1594,7 +1615,7 @@ fn isDisoccluded2(
     let iPrevMesh: u32 = u32(ceil(prevMotionVectorAndMeshIDAndDepth.z - 0.5f)) - 1;
     var fCheckWorldPositionDistance: f32 = dot(worldPositionDiff, worldPositionDiff);
 
-    return !(iMesh == iPrevMesh && fCheckDepth <= 0.01f && fCheckWorldPositionDistance <= 0.01f && fCheckDP >= 0.99f);
+    return !(iMesh == iPrevMesh && fCheckDepth <= 0.001f && fCheckWorldPositionDistance <= 0.001f && fCheckDP >= 0.99f);
 }
 
 ///// 
