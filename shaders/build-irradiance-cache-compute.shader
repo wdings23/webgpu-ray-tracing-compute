@@ -165,7 +165,7 @@ fn cs_main(
         return;
     }
 
-    let imageCoord: vec2<u32> = vec2<u32>(iX, iY);
+    var imageCoord: vec2<u32> = vec2<u32>(iX, iY);
     let worldPosition: vec4<f32> = textureLoad(
         worldPositionTexture,
         imageCoord,
@@ -192,18 +192,51 @@ fn cs_main(
         0
     );
 
-    var randomResult: RandomResult = initRand(
-        u32(f32(iLocalThreadIndex + workGroup.y) * 100.0f + f32(iLocalThreadIndex + workGroup.x) * 200.0f) + u32(defaultUniformBuffer.mfRand0 * 100.0f),
-        u32(f32(workGroup.x) * 10.0f + f32(iLocalThreadIndex * workGroup.y) * 20.0f) + u32(defaultUniformBuffer.mfRand1 * 100.0f),
-        10u);
-
-    updateIrradianceCache(
-        hitPosition.xyz,
-        hitNormal.xyz,
-        randomResult,
-        iX,
-        iY
+    // get on-screen radiance if there's any
+    var clipSpacePosition: vec4<f32> = vec4<f32>(hitPosition.xyz, 1.0) * defaultUniformBuffer.mViewProjectionMatrix;
+    clipSpacePosition.x /= clipSpacePosition.w;
+    clipSpacePosition.y /= clipSpacePosition.w;
+    clipSpacePosition.z /= clipSpacePosition.w;
+    clipSpacePosition.x = clipSpacePosition.x * 0.5f + 0.5f;
+    clipSpacePosition.y = (clipSpacePosition.y * 0.5f + 0.5f);
+    clipSpacePosition.z = clipSpacePosition.z * 0.5f + 0.5f;
+    
+    imageCoord = vec2u(
+        u32(clipSpacePosition.x * f32(textureSize.x)),
+        u32(clipSpacePosition.y * f32(textureSize.y))
     );
+
+    let worldSpaceHitPosition: vec4<f32> = textureLoad(
+        worldPositionTexture,
+        imageCoord,
+        0);
+    var hitPositionClipSpace: vec4<f32> = vec4<f32>(worldSpaceHitPosition.xyz, 1.0f) * defaultUniformBuffer.mViewProjectionMatrix;
+    hitPositionClipSpace.x /= hitPositionClipSpace.w;
+    hitPositionClipSpace.y /= hitPositionClipSpace.w;
+    hitPositionClipSpace.z /= hitPositionClipSpace.w;
+    hitPositionClipSpace.x = hitPositionClipSpace.x * 0.5f + 0.5f;
+    hitPositionClipSpace.y = (hitPositionClipSpace.y * 0.5f + 0.5f);
+    hitPositionClipSpace.z = hitPositionClipSpace.z * 0.5f + 0.5f;
+
+    let fDepthDiff: f32 = abs(hitPositionClipSpace.z - clipSpacePosition.z);
+
+    if(clipSpacePosition.x > 1.0f || clipSpacePosition.x < 0.0f || 
+       clipSpacePosition.y > 1.0f || clipSpacePosition.y < 0.0f || 
+       fDepthDiff > 0.01f)
+    {
+        var randomResult: RandomResult = initRand(
+            u32(f32(iLocalThreadIndex + workGroup.y) * 100.0f + f32(iLocalThreadIndex + workGroup.x) * 200.0f) + u32(defaultUniformBuffer.mfRand0 * 100.0f),
+            u32(f32(workGroup.x) * 10.0f + f32(iLocalThreadIndex * workGroup.y) * 20.0f) + u32(defaultUniformBuffer.mfRand1 * 100.0f),
+            10u);
+
+        updateIrradianceCache(
+            hitPosition.xyz,
+            hitNormal.xyz,
+            randomResult,
+            iX,
+            iY
+        );
+    }
 }
 
 /*
