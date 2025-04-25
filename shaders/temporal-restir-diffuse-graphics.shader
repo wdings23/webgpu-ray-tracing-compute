@@ -171,36 +171,39 @@ var normalTexture: texture_2d<f32>;
 var texCoordTexture: texture_2d<f32>;
 
 @group(0) @binding(3)
-var skyTexture: texture_2d<f32>;
+var materialTexture: texture_2d<f32>;
 
 @group(0) @binding(4)
-var prevTemporalReservoirTexture: texture_2d<f32>;
+var skyTexture: texture_2d<f32>;
 
 @group(0) @binding(5)
-var prevTemporalRadianceTexture: texture_2d<f32>;
+var prevTemporalReservoirTexture: texture_2d<f32>;
 
 @group(0) @binding(6)
-var prevTemporalHitPositionTexture: texture_2d<f32>;
+var prevTemporalRadianceTexture: texture_2d<f32>;
 
 @group(0) @binding(7)
-var prevTemporalHitNormalTexture: texture_2d<f32>;
+var prevTemporalHitPositionTexture: texture_2d<f32>;
 
 @group(0) @binding(8)
-var prevWorldPositionTexture: texture_2d<f32>;
+var prevTemporalHitNormalTexture: texture_2d<f32>;
 
 @group(0) @binding(9)
-var prevNormalTexture: texture_2d<f32>;
+var prevWorldPositionTexture: texture_2d<f32>;
 
 @group(0) @binding(10)
-var motionVectorTexture: texture_2d<f32>;
+var prevNormalTexture: texture_2d<f32>;
 
 @group(0) @binding(11)
-var prevMotionVectorTexture: texture_2d<f32>;
+var motionVectorTexture: texture_2d<f32>;
 
 @group(0) @binding(12)
-var directRadianceTexture: texture_2d<f32>;
+var prevMotionVectorTexture: texture_2d<f32>;
 
 @group(0) @binding(13)
+var directRadianceTexture: texture_2d<f32>;
+
+@group(0) @binding(14)
 var<storage, read> irradianceCache: array<IrradianceCacheEntry>;
 
 @group(1) @binding(0)
@@ -822,17 +825,32 @@ fn temporalRestir(
             // on screen
 
             let prevOnScreenUV: vec2<f32> = getPreviousScreenUV(clipSpacePosition.xy);
+            let prevOnScreenImageCoord: vec2<u32> = vec2<u32>(
+                u32(prevOnScreenUV.x * f32(defaultUniformBuffer.miScreenWidth)),
+                u32(prevOnScreenUV.y * f32(defaultUniformBuffer.miScreenHeight))
+            );
             candidateRadiance = textureLoad(
                 directRadianceTexture,
                 imageCoord.xy,
                 0);
+            candidateRadiance += textureLoad(
+                prevTemporalRadianceTexture,
+                prevOnScreenImageCoord.xy,
+                0
+            );
+            let material: vec4<f32> = textureLoad(
+                materialTexture,
+                imageCoord.xy,
+                0
+            );
+            candidateRadiance *= material;
 
             //candidateRadiance += textureSample(
             //    prevEmissiveRadianceTexture,
             //    textureSampler,
             //    prevOnScreenUV.xy);
 
-            let fReflectivity: f32 = 0.3f;
+            let fReflectivity: f32 = 1.0f;
 
             // distance attenuation
             let diff: vec3<f32> = hitPosition.xyz - worldPosition.xyz;

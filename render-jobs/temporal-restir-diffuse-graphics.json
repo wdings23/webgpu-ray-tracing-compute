@@ -69,6 +69,11 @@
             "ParentJobName": "Deferred Indirect Graphics"
         },
         {
+            "Name" : "Material Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
             "Name" : "Sky Output",
             "Type": "TextureInput",
             "ParentJobName": "Atmosphere Graphics"
