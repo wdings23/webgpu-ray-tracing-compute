@@ -117,6 +117,12 @@
             "Name": "Direct Radiance Output",
             "Type": "TextureInput",
             "ParentJobName": "Direct Radiance Graphics"
+        },
+
+        {
+            "Name": "Irradiance Cache",
+            "Type": "BufferInput",
+            "ParentJobName": "Build Irradiance Cache Compute"
         }
 
 
@@ -163,13 +169,6 @@
             "type": "texture",
             "shader_stage": "fragment",
             "usage": "write_only_storage",
-            "external": "true"
-        },
-        {
-            "name": "irradianceCacheQueue",
-            "type": "buffer",
-            "shader_stage": "all",
-            "usage": "read_write_storage",
             "external": "true"
         }
         

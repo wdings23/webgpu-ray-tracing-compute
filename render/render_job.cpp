@@ -564,6 +564,46 @@ namespace Render
                 assert(bFound);
 
             }   // if attachment type == Texture input
+            if(attachmentType == "BufferInput" || attachmentType == "BufferInputOutput")
+            {
+                std::string attachmentName = attachment["Name"].GetString();
+                std::string parentAttachmentName = attachmentName;
+                if(attachment.HasMember("ParentName"))
+                {
+                    parentAttachmentName = attachment["ParentName"].GetString();
+                }
+
+                std::string attachmentParentJobName = attachment["ParentJobName"].GetString();
+
+                bool bFound = false;
+                for(auto const& renderJob : aRenderJobs)
+                {
+                    if(attachmentParentJobName == renderJob->mName)
+                    {
+                        bFound = true;
+                        if(renderJob->mOutputBufferAttachments.find(parentAttachmentName) != renderJob->mOutputBufferAttachments.end())
+                        {
+                            mInputBufferAttachments[attachmentName] = &renderJob->mOutputBufferAttachments[parentAttachmentName];
+                            
+                            break;
+                        }
+                        else
+                        {
+                            assert(!"Can\'t find input attachment");
+                        }
+                    }
+
+                }   // for render job in all render jobs
+
+                if(attachmentParentJobName == "Draw Text Graphics")
+                {
+                    mInputImageAttachments[attachmentName] = createInfo.mpDrawTextOutputAttachment;
+                    bFound = true;
+                }
+
+                assert(bFound);
+
+            }   // if attachment type == Texture input
 
         }   // for attachment in attachments
 

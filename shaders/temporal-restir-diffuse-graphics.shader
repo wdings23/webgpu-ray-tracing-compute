@@ -200,6 +200,9 @@ var prevMotionVectorTexture: texture_2d<f32>;
 @group(0) @binding(12)
 var directRadianceTexture: texture_2d<f32>;
 
+@group(0) @binding(13)
+var<storage, read> irradianceCache: array<IrradianceCacheEntry>;
+
 @group(1) @binding(0)
 var<uniform> uniformData: UniformData;
 
@@ -231,12 +234,9 @@ var blueNoiseTexture: texture_2d<f32>;
 var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(6)
-var<storage, read_write> irradianceCache: array<IrradianceCacheEntry>;
-
-@group(1) @binding(7)
 var<uniform> defaultUniformBuffer: DefaultUniformData;
 
-@group(1) @binding(8)
+@group(1) @binding(7)
 var textureSampler: sampler;
 
 @vertex
