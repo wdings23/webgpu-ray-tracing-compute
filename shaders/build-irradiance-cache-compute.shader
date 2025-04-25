@@ -171,6 +171,12 @@ fn cs_main(
         imageCoord,
         0
     );
+
+    if(worldPosition.w <= 0.0f)
+    {
+        return;
+    }
+
     let normal: vec4<f32> = textureLoad(normalTexture,
         imageCoord,
         0
@@ -357,7 +363,7 @@ fn fetchIrradianceCacheIndex(
 
     let iHashKey: u32 = hash13(
         scaledPosition,
-        5000u
+        50000u
     );
 
     return iHashKey;

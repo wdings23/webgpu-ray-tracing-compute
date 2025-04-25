@@ -46,6 +46,12 @@
             "Dispatch": [1024, 1, 1]
         },
         {
+            "Name": "Debug Irradiance Cache Graphics",
+            "Pipeline": "debug-irradiance-cache-graphics.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle"
+        },
+        {
             "Name": "Outline Graphics",
             "Pipeline": "outline-graphics.json",
             "Type": "Graphics",
