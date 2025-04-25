@@ -113,11 +113,20 @@ struct DirectSunLightResult
 
 struct IrradianceCacheEntry
 {
-    mPosition:              vec4<f32>,
-    mSHCoefficients0:       vec4<f32>,        
-    mSHCoefficients1:       vec4<f32>,        
-    mSHCoefficients2:       vec4<f32>         
+    mPosition: vec4<f32>,
+    mSampleCount: vec4<f32>,
+    mSphericalHarmonics0: vec4<f32>,
+    mSphericalHarmonics1: vec4<f32>,
+    mSphericalHarmonics2: vec4<f32>
 };
+
+struct SHOutput 
+{
+    mCoefficients0: vec4<f32>,
+    mCoefficients1: vec4<f32>,
+    mCoefficients2: vec4<f32>
+};
+
 
 struct IrradianceCacheQueueEntry
 {
@@ -222,7 +231,7 @@ var blueNoiseTexture: texture_2d<f32>;
 var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(6)
-var<storage, read> irradianceCache: array<IrradianceCacheEntry>;
+var<storage, read_write> irradianceCache: array<IrradianceCacheEntry>;
 
 @group(1) @binding(7)
 var<uniform> defaultUniformBuffer: DefaultUniformData;
@@ -1776,18 +1785,24 @@ fn getRadianceFromIrradianceCacheProbe(
     iIrradianceCacheIndex: u32
 ) -> vec3<f32>
 {
-    //if(irradianceCache[iIrradianceCacheIndex].mPosition.w == 0.0f)
-    //{
-    //    return vec3<f32>(0.0f, 0.0f, 0.0f);
-    //}
+    if(irradianceCache[iIrradianceCacheIndex].mPosition.w == 0.0f)
+    {
+        return vec3<f32>(0.0f, 0.0f, 0.0f);
+    }
 
-    let probeImageUV: vec2<f32> = octahedronMap2(rayDirection);
-    var iImageY: u32 = clamp(u32(probeImageUV.y * f32(PROBE_IMAGE_SIZE)), 0u, PROBE_IMAGE_SIZE - 1u);
-    var iImageX: u32 = clamp(u32(probeImageUV.x * f32(PROBE_IMAGE_SIZE)), 0u, PROBE_IMAGE_SIZE - 1u);
-    var iImageIndex: u32 = iImageY * PROBE_IMAGE_SIZE + iImageX;
+    var shCoeff: SHOutput;
+    shCoeff.mCoefficients0 = irradianceCache[iIrradianceCacheIndex].mSphericalHarmonics0;
+    shCoeff.mCoefficients1 = irradianceCache[iIrradianceCacheIndex].mSphericalHarmonics1;
+    shCoeff.mCoefficients2 = irradianceCache[iIrradianceCacheIndex].mSphericalHarmonics2; 
 
-    //return irradianceCache[iIrradianceCacheIndex].mImageProbe[iImageIndex].xyz;
-    return vec3<f32>(0.0f, 0.0f, 0.0f);
+    let ret: vec3<f32> = decodeFromSphericalHarmonicCoefficients(
+        shCoeff,
+        rayDirection * -1.0f,
+        vec3<f32>(10.0f, 10.0f, 10.0f),
+        irradianceCache[iIrradianceCacheIndex].mSampleCount.x
+    );
+
+    return ret;
 }
 
 /*
@@ -1797,6 +1812,42 @@ fn getIrradianceCachePosition(
     iIrradianceCacheIndex: u32
 ) -> vec4<f32>
 {
-    return vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
-    //return irradianceCache[iIrradianceCacheIndex].mPosition;
+    return irradianceCache[iIrradianceCacheIndex].mPosition;
+}
+
+/*
+**
+*/
+fn decodeFromSphericalHarmonicCoefficients(
+    shOutput: SHOutput,
+    direction: vec3<f32>,
+    maxRadiance: vec3<f32>,
+    fHistoryCount: f32
+) -> vec3<f32>
+{
+    var SHCoefficent0: vec4<f32> = shOutput.mCoefficients0;
+    var SHCoefficent1: vec4<f32> = shOutput.mCoefficients1;
+    var SHCoefficent2: vec4<f32> = shOutput.mCoefficients2;
+
+    var aTotalCoefficients: array<vec3<f32>, 4>;
+    let fFactor: f32 = 1.0f;
+
+    aTotalCoefficients[0] = vec3<f32>(SHCoefficent0.x, SHCoefficent0.y, SHCoefficent0.z) * fFactor;
+    aTotalCoefficients[1] = vec3<f32>(SHCoefficent0.w, SHCoefficent1.x, SHCoefficent1.y) * fFactor;
+    aTotalCoefficients[2] = vec3<f32>(SHCoefficent1.z, SHCoefficent1.w, SHCoefficent2.x) * fFactor;
+    aTotalCoefficients[3] = vec3<f32>(SHCoefficent2.y, SHCoefficent2.z, SHCoefficent2.w) * fFactor;
+
+    let fC1: f32 = 0.42904276540489171563379376569857f;
+    let fC2: f32 = 0.51166335397324424423977581244463f;
+    let fC3: f32 = 0.24770795610037568833406429782001f;
+    let fC4: f32 = 0.88622692545275801364908374167057f;
+
+    var decoded: vec3<f32> =
+        aTotalCoefficients[0] * fC4 +
+        (aTotalCoefficients[3] * direction.x + aTotalCoefficients[1] * direction.y + aTotalCoefficients[2] * direction.z) *
+        fC2 * 2.0f;
+    decoded /= fHistoryCount;
+    decoded = clamp(decoded, vec3<f32>(0.0f, 0.0f, 0.0f), maxRadiance);
+
+    return decoded;
 }
