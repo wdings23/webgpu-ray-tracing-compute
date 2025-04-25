@@ -354,13 +354,23 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     let blueNoiseTextureSize: vec2<u32> = textureDimensions(blueNoiseTexture);
 
+    // switch tile every frame as shown in iTileIndex
+    let iTileSize: u32 = 32u;
+    let iNumTilesX: u32 = (blueNoiseTextureSize.x / iTileSize);
+    let iNumTilesY: u32 = (blueNoiseTextureSize.y / iTileSize);
+    let iNumTotalTiles: u32 = iNumTilesX * iNumTilesY; 
+    var iTileIndex: u32 = (u32(defaultUniformBuffer.miFrame) % (iNumTilesX * iNumTilesY)); 
+    var iTileIndexX: u32 = iTileIndex % iNumTilesX;
+    var iTileIndexY: u32 = (iTileIndex / iNumTilesX) % iNumTilesY; 
+
     // center pixel sample
     for(var iSample: i32 = 0; iSample < iNumCenterSamples; iSample++)
     {
         var sampleRayDirection: vec3f = vec3f(0.0f, 0.0f, 0.0f);
         {
-            var iOffsetX: u32 = u32(defaultUniformBuffer.miFrame) % blueNoiseTextureSize.x;
-            var iOffsetY: u32 = (u32(defaultUniformBuffer.miFrame) / blueNoiseTextureSize.y) % blueNoiseTextureSize.y;
+            let iTotalSampleIndex: u32 = u32(defaultUniformBuffer.miFrame) * 4u + u32(iSample);
+            var iOffsetX: u32 = (iTotalSampleIndex % iTileSize) + iTileIndexX * iTileSize;
+            var iOffsetY: u32 = ((iTotalSampleIndex / iTileSize) % iTileSize) + iTileIndexY * iTileSize;
             var blueNoiseSampleScreenCoord: vec2<u32> = vec2<u32>(
                 ((u32(origScreenCoord.x) + iOffsetX) % u32(blueNoiseTextureSize.x)),
                 ((u32(origScreenCoord.y) + iOffsetY) % u32(blueNoiseTextureSize.y))
