@@ -82,6 +82,35 @@
         },
 
         {
+            "Name": "Previous Emissive Temporal Reservoir Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Emissive Temporal Restir Graphics",
+            "ParentName": "Reservoir Output",
+            "Format": "rgba16float"
+        },
+        {
+            "Name": "Previous Emissive Temporal Restir Radiance Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Emissive Temporal Restir Graphics",
+            "ParentName": "Radiance Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Emissive Temporal Hit Position Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Emissive Temporal Restir Graphics",
+            "ParentName": "Hit Position Output",
+            "Format": "rgba16float"
+        },
+        {
+            "Name": "Previous Emissive Temporal Hit Normal Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Emissive Temporal Restir Graphics",
+            "ParentName": "Hit Normal Output",
+            "Format": "rgba16float"
+        },
+
+        {
             "Name": "Previous Spherical Harmonics 0 Output",
             "Type": "TextureOutput",
             "ParentJobName": "Spherical Harmonics Diffuse Graphics",

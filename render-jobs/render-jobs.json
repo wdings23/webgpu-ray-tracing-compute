@@ -33,6 +33,12 @@
             "PassType": "Full Triangle"
         },
         {
+            "Name": "Emissive Temporal Restir Graphics",
+            "Pipeline": "temporal-restir-emissive-graphics.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle"
+        },
+        {
             "Name": "Spherical Harmonics Diffuse Graphics",
             "Pipeline": "spherical-harmonics-diffuse-graphics.json",
             "Type": "Graphics",
