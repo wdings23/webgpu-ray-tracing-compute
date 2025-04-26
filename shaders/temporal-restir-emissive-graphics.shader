@@ -289,6 +289,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         prevScreenCoord,
         0) * fValidHistory;
 
+/*
     var sampleRayDirection: vec3f = vec3f(0.0f, 0.0f, 0.0f);
     {
         let blueNoiseTextureSize: vec2<u32> = textureDimensions(blueNoiseTexture);
@@ -322,7 +323,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             blueNoise.y);
         sampleRayDirection = ray.mDirection.xyz;
     }
-
+*/
     var bTraceRay: bool = false;
     var rayDirection: vec3<f32> = normalize(hitPosition.xyz - worldPosition.xyz);
     if(defaultUniformBuffer.miFrame > 0 && defaultUniformBuffer.miFrame % 4 == 0)
@@ -331,6 +332,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         bTraceRay = true;
     }
 
+    let fPerSampleSize: f32 = 0.1f;
     result = temporalRestir(
         result,
         worldPosition.xyz,
@@ -341,8 +343,21 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         1.0f,
         randomResult,
         0u,
-        0.1f,
+        fPerSampleSize,
         bTraceRay
+    );
+
+    let iMesh: u32 = u32(floor(ceil(worldPosition.w - fract(worldPosition.w) - 0.5f)));
+
+    result = permutationSampling(
+        result,
+        vec2i(i32(screenCoord.x), i32(screenCoord.y)),
+        worldPosition.xyz,
+        normal.xyz,
+        i32(iMesh),
+        8.0f,
+        randomResult,
+        fPerSampleSize
     );
 
     result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
@@ -353,7 +368,6 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     output.mHitNormal.w = f32(result.miHitTriangle);
 
-    let iMesh: u32 = u32(floor(ceil(worldPosition.w - fract(worldPosition.w) - 0.5f)));
     let meshMaterial: Material = aMeshMaterials[iMesh];
     if(dot(meshMaterial.mEmissive.xyz, meshMaterial.mEmissive.xyz) > 0.0f)
     {
@@ -452,7 +466,6 @@ fn temporalRestir(
             0
         );
         iHitTriangle = u32(hitInfo.x);
-        var iHitMesh: u32 = u32(hitInfo.y);
     }
     
     var candidateRadiance: vec4<f32> = vec4<f32>(0.0f, 0.0f, 0.0f, 1.0f);
@@ -1027,4 +1040,252 @@ fn uniformSampling(
     ray.mfT = vec4<f32>(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
 
     return ray;
+}
+
+/*
+**
+*/
+fn permutationSampling(
+    result: TemporalRestirResult,
+    origScreenCoord: vec2<i32>,
+    worldPosition: vec3<f32>,
+    normal: vec3<f32>,
+    iCenterMeshID: i32,
+    fReservoirSize : f32,
+    randomResult: RandomResult,
+    fM: f32
+) -> TemporalRestirResult
+{
+    var ret: TemporalRestirResult = result;
+    
+    let fPlaneD: f32 = -dot(worldPosition, normal);
+
+    // permutation samples
+    //let iNumPermutations: i32 = uniformData.miNumTemporalRestirSamplePermutations + 1;
+    for(var iSample: i32 = 1; iSample < 5; iSample++)
+    {
+        var aXOR: array<vec2<i32>, 4>;
+        aXOR[0] = vec2<i32>(3, 3);
+        aXOR[1] = vec2<i32>(2, 1);
+        aXOR[2] = vec2<i32>(1, 2);
+        aXOR[3] = vec2<i32>(3, 3);
+        
+        var aOffsets: array<vec2<i32>, 4>;
+        aOffsets[0] = vec2<i32>(-1, -1);
+        aOffsets[1] = vec2<i32>(1, 1);
+        aOffsets[2] = vec2<i32>(-1, 1);
+        aOffsets[3] = vec2<i32>(1, -1);
+
+        // apply permutation offset to screen coordinate, converting to uv after
+        let iFrame: i32 = i32(defaultUniformBuffer.miFrame);
+        let iIndex0: i32 = iFrame & 3;
+        let iIndex1: i32 = (iSample + (iFrame ^ 1)) & 3;
+        let offset: vec2<i32> = aOffsets[iIndex0] + aOffsets[iIndex1];
+        let screenCoord: vec2<i32> = (origScreenCoord + offset) ^ aXOR[iFrame & 3]; 
+        
+        var sampleRayDirection: vec3<f32> = vec3<f32>(0.0f, 0.0f, 0.0f);
+        var ray: Ray;
+
+        // permutation uv
+        var sampleUV: vec2<f32> = vec2<f32>(
+            ceil(f32(screenCoord.x) + 0.5f) / f32(defaultUniformBuffer.miScreenWidth),
+            ceil(f32(screenCoord.y) + 0.5f) / f32(defaultUniformBuffer.miScreenHeight));
+
+        // get sample world position, normal, and ray direction
+        var fJacobian: f32 = 1.0f;
+        {
+            // back project to previous frame's screen coordinate
+            var motionVector: vec2<f32> = textureLoad(
+                motionVectorTexture,
+                screenCoord,
+                0).xy;
+            sampleUV -= motionVector;
+
+            // sample world position
+            let sampleWorldPosition: vec4<f32> = textureLoad(
+                prevWorldPositionTexture,
+                screenCoord,
+                0);
+
+            let sampleNormal: vec3<f32> = textureLoad(
+                prevNormalTexture,
+                screenCoord,
+                0).xyz;
+
+            // neighbor normal difference check 
+            let fDP: f32 = dot(sampleNormal, normal);
+            if(fDP <=  0.6f)
+            {
+                continue;
+            }
+
+            // neightbor depth difference check
+            let fSampleDepth: f32 = fract(sampleWorldPosition.w);
+            //let fDepthDiff: f32 = abs(fCenterDepth - fSampleDepth);
+            //if(fDepthDiff >= 0.05f)
+            //{
+            //    continue;
+            //} 
+
+            let fPlaneDistance: f32 = dot(normal.xyz, sampleWorldPosition.xyz) + fPlaneD;
+            if(abs(fPlaneDistance) >= 0.2f)
+            {
+                continue;
+            }
+
+            // mesh id difference check
+            let iSampleMeshID: i32 = i32(floor((sampleWorldPosition.w - fSampleDepth) + 0.5f));
+            if(iSampleMeshID != iCenterMeshID)
+            {
+                continue;
+            }
+
+            // hit point and hit normal for jacobian
+            let sampleHitPoint: vec3<f32> = textureLoad(
+                prevHitPositionTexture,
+                screenCoord,
+                0).xyz;
+
+            if(checkClipSpaceBlock(
+                worldPosition.xyz, 
+                normalize(worldPosition.xyz - sampleHitPoint)))
+            {
+                continue;
+            }
+
+            var neighborHitNormal: vec3<f32> = textureLoad(
+                prevHitNormalTexture,
+                screenCoord,
+                0).xyz;
+            let centerToNeighborHitPointUnNormalized: vec3<f32> = sampleHitPoint - worldPosition.xyz;
+            let neighborToNeighborHitPointUnNormalized: vec3<f32> = sampleHitPoint - sampleWorldPosition.xyz;
+            let centerToNeighborHitPointNormalized: vec3<f32> = normalize(centerToNeighborHitPointUnNormalized);
+            let neighborToNeighborHitPointNormalized: vec3<f32> = normalize(neighborToNeighborHitPointUnNormalized);
+            
+            // compare normals for jacobian
+            let fDP0: f32 = max(dot(neighborHitNormal, centerToNeighborHitPointNormalized * -1.0f), 0.0f);
+            var fDP1: f32 = max(dot(neighborHitNormal, neighborToNeighborHitPointNormalized * -1.0f), 1.0e-4f);
+            fJacobian = fDP0 / fDP1;
+
+            // compare length for jacobian 
+            let fCenterToHitPointLength: f32 = length(centerToNeighborHitPointUnNormalized);
+            let fNeighborToHitPointLength: f32 = length(neighborToNeighborHitPointUnNormalized);
+            fJacobian *= ((fCenterToHitPointLength * fCenterToHitPointLength) / (fNeighborToHitPointLength * fNeighborToHitPointLength));
+            fJacobian = clamp(fJacobian, 0.0f, 1.0f);
+
+            sampleRayDirection = centerToNeighborHitPointNormalized;
+        }
+
+        ret.miHitTriangle = UINT32_MAX;
+        ret = temporalRestir(
+            ret,
+
+            worldPosition.xyz,
+            normal,
+            sampleUV,
+            sampleRayDirection,
+
+            fReservoirSize,
+            fJacobian,
+            randomResult,
+            u32(iSample),
+            fM * 0.25f, 
+            false);
+
+    }   // for sample = 0 to num permutation samples  
+
+    ret.mReservoir.z = result.mReservoir.z;
+
+    var ray: Ray;
+    ray.mDirection = vec4<f32>(ret.mRayDirection.xyz, 1.0f);
+    ray.mOrigin = vec4<f32>(worldPosition.xyz + result.mRayDirection.xyz * 0.01f, 1.0f);
+    var intersectionInfo: IntersectBVHResult;
+    intersectionInfo = intersectBVH4(ray, 0u);
+    if((length(result.mHitPosition.xyz) >= RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) < RAY_LENGTH) || 
+    (length(result.mHitPosition.xyz) < RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) >= RAY_LENGTH))
+    {
+        ret = result;
+    }
+
+    return ret;
+}
+
+/*
+**
+*/
+fn checkClipSpaceBlock(
+    centerWorldPosition: vec3<f32>,
+    centerToNeighborHitPointNormalized: vec3<f32>
+) -> bool
+{
+    var bBlocked: bool = false;
+    let iNumBlockSteps: i32 = 6;
+    var currCheckPosition: vec3<f32> = centerWorldPosition;
+    var startScreenPosition: vec2<i32> = vec2<i32>(-1, -1);
+    var currScreenPosition: vec2<i32> = vec2<i32>(-1, -1);
+    for(var iStep: i32 = 0; iStep < iNumBlockSteps; iStep++)
+    {
+        // convert to clipspace for fetching world position from texture
+        var clipSpacePosition: vec4<f32> = vec4<f32>(currCheckPosition, 1.0f) * defaultUniformBuffer.mViewProjectionMatrix;
+        clipSpacePosition.x /= clipSpacePosition.w;
+        clipSpacePosition.y /= clipSpacePosition.w;
+        clipSpacePosition.z /= clipSpacePosition.w;
+        currCheckPosition += centerToNeighborHitPointNormalized * 0.05f;
+
+        let currScreenUV = vec2<f32>(
+            clipSpacePosition.x * 0.5f + 0.5f,
+            1.0f - (clipSpacePosition.y * 0.5f + 0.5f)
+        );
+
+        currScreenPosition.x = i32(currScreenUV.x * f32(defaultUniformBuffer.miScreenWidth));
+        currScreenPosition.y = i32(currScreenUV.y * f32(defaultUniformBuffer.miScreenHeight));
+
+        // only check the surrounding pixel 
+        if(abs(currScreenPosition.x - startScreenPosition.x) > 6 || abs(currScreenPosition.y - startScreenPosition.y) > 6)
+        {
+            continue;
+        }
+
+        // out of bounds
+        if(currScreenPosition.x < 0 || currScreenPosition.x >= i32(defaultUniformBuffer.miScreenWidth) || 
+            currScreenPosition.y < 0 || currScreenPosition.y >= i32(defaultUniformBuffer.miScreenHeight))
+        {
+            continue;
+        }
+
+        if(iStep == 0)
+        {
+            // save the starting screen position
+            startScreenPosition = currScreenPosition;
+            continue;
+        }
+        else if(startScreenPosition.x >= 0)
+        {   
+            // still at the same pixel position
+            if(currScreenPosition.x == startScreenPosition.x && currScreenPosition.y == startScreenPosition.y)
+            {
+                iStep -= 1;
+                continue;
+            }
+        }
+
+        // compare depth value, smaller is in front, therefore blocked
+        let currWorldPosition: vec4<f32> = textureLoad(
+            worldPositionTexture,
+            currScreenPosition,
+            0);
+        if(currWorldPosition.w == 0.0f)
+        {
+            continue;
+        }
+        let fCurrDepth: f32 = fract(currWorldPosition.w);
+        if(fCurrDepth < clipSpacePosition.z)
+        {
+            bBlocked = true;
+
+            break;
+        }
+    }
+
+    return bBlocked;
 }
