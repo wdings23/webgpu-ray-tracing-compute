@@ -45,6 +45,12 @@
             "PassType": "Full Triangle"
         },
         {
+            "Name": "Spherical Harmonics Emissive Graphics",
+            "Pipeline": "spherical-harmonics-emissive-graphics.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle"
+        },
+        {
             "Name": "Build Irradiance Cache Compute",
             "Pipeline": "build-irradiance-cache-compute.json",
             "Type": "Compute",

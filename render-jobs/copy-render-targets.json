@@ -137,6 +137,36 @@
             "ParentJobName": "Spherical Harmonics Diffuse Graphics",
             "ParentName": "Inverse Spherical Harmonics Output",
             "Format": "rgba32float"
+        },
+
+
+        {
+            "Name": "Previous Emissive Spherical Harmonics 0 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Emissive Graphics",
+            "ParentName": "Emissive Spherical Harmonics 0 Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Emissive Spherical Harmonics 1 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Emissive Graphics",
+            "ParentName": "Emissive Spherical Harmonics 1 Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Emissive Spherical Harmonics 2 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Emissive Graphics",
+            "ParentName": "Emissive Spherical Harmonics 2 Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Emissive Spherical Harmonics Radiance Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Emissive Graphics",
+            "ParentName": "Emissive Inverse Spherical Harmonics Output",
+            "Format": "rgba32float"
         }
     ]
 }

@@ -190,9 +190,12 @@ var<storage, read> aiSceneTriangleIndices: array<u32>;
 var blueNoiseTexture: texture_2d<f32>;
 
 @group(1) @binding(7)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(8)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(9)
 var textureSampler: sampler;
 
 struct VertexOutput 
@@ -375,6 +378,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         output.mRadiance = vec4<f32>(meshMaterial.mEmissive.xyz, 1.0f);
         output.mReservoir = vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
     }
+
+    textureStore(
+        sampleRadianceTexture,
+        screenCoord,
+        result.mSampleRadiance
+    );
 
     return output;
 }

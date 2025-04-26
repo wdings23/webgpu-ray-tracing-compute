@@ -26,7 +26,12 @@
             "File": "blue-noise.png" 
         },
         {
-            "Name": "sampleRadianceTexture",
+            "Name": "sampleDiffuseRadianceTexture",
+            "Type": "Render Target",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "sampleEmissiveRadianceTexture",
             "Type": "Render Target",
             "Format": "rgba32float"
         },

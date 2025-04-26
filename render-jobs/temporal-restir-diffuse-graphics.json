@@ -170,7 +170,7 @@
             "external": "true"
         },
         {
-            "name": "sampleRadianceTexture",
+            "name": "sampleDiffuseRadianceTexture",
             "type": "texture",
             "shader_stage": "fragment",
             "usage": "write_only_storage",

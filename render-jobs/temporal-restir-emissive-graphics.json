@@ -155,6 +155,13 @@
             "shader_stage": "fragment",
             "usage": "read_only_storage",
             "external": "true"
+        },
+        {
+            "name": "sampleEmissiveRadianceTexture",
+            "type": "texture",
+            "shader_stage": "fragment",
+            "usage": "write_only_storage",
+            "external": "true"
         }
         
     ],

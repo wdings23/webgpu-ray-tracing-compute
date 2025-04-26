@@ -4,23 +4,23 @@
     "Shader": "spherical-harmonics-diffuse-graphics.shader",
     "Attachments": [
         {
-            "Name" : "Spherical Harmonics 0 Output",
+            "Name" : "Emissive Spherical Harmonics 0 Output",
             "Type": "TextureOutput",
             "Format": "rgba32float"
         },
         {
-            "Name" : "Spherical Harmonics 1 Output",
+            "Name" : "Emissive Spherical Harmonics 1 Output",
             "Type": "TextureOutput",
             "Format": "rgba32float"
         },
         {
-            "Name" : "Spherical Harmonics 2 Output",
+            "Name" : "Emissive Spherical Harmonics 2 Output",
             "Type": "TextureOutput",
             "Format": "rgba32float"
         },
         
         {
-            "Name" : "Inverse Spherical Harmonics Output",
+            "Name" : "Emissive Inverse Spherical Harmonics Output",
             "Type": "TextureOutput",
             "Format": "rgba32float"
         },
@@ -28,7 +28,7 @@
         {
             "Name" : "Radiance Output",
             "Type": "TextureInput",
-            "ParentJobName": "Diffuse Temporal Restir Graphics"
+            "ParentJobName": "Emissive Temporal Restir Graphics"
         },
         {
             "Name" : "World Position Output",
@@ -58,7 +58,7 @@
         {
             "Name": "Hit Position Output",
             "Type": "TextureInput",
-            "ParentJobName": "Diffuse Temporal Restir Graphics"
+            "ParentJobName": "Emissive Temporal Restir Graphics"
         },
         {
             "Name": "Sample Ray Direction Output",
@@ -66,22 +66,22 @@
             "ParentJobName": "Diffuse Temporal Restir Graphics"
         },
         {
-            "Name": "Previous Spherical Harmonics 0 Output",
+            "Name": "Previous Emissive Spherical Harmonics 0 Output",
             "Type": "TextureInput",
             "ParentJobName": "Copy Render Targets"
         },
         {
-            "Name": "Previous Spherical Harmonics 1 Output",
+            "Name": "Previous Emissive Spherical Harmonics 1 Output",
             "Type": "TextureInput",
             "ParentJobName": "Copy Render Targets"
         },
         {
-            "Name": "Previous Spherical Harmonics 2 Output",
+            "Name": "Previous Emissive Spherical Harmonics 2 Output",
             "Type": "TextureInput",
             "ParentJobName": "Copy Render Targets"
         },
         {
-            "Name": "Previous Spherical Harmonics Radiance Output",
+            "Name": "Previous Emissive Spherical Harmonics Radiance Output",
             "Type": "TextureInput",
             "ParentJobName": "Copy Render Targets"
         },
@@ -99,7 +99,7 @@
     ],
     "ShaderResources": [
         {
-            "name": "sampleDiffuseRadianceTexture",
+            "name": "sampleEmissiveRadianceTexture",
             "type": "texture",
             "shader_stage": "fragment",
             "usage": "read_only_storage",
