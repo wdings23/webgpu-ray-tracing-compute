@@ -20,6 +20,11 @@
             "ParentJobName": "Spherical Harmonics Diffuse Graphics"
         },
         {
+            "Name": "Emissive Inverse Spherical Harmonics Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Spherical Harmonics Emissive Graphics"
+        },
+        {
             "Name": "Sample Ray Direction Output",
             "Type": "TextureInput",
             "ParentJobName": "Diffuse Temporal Restir Graphics"

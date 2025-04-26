@@ -133,7 +133,7 @@ var worldPositionTexture: texture_2d<f32>;
 var normalTexture: texture_2d<f32>;
 
 @group(0) @binding(2)
-var texCoordTexture: texture_2d<f32>;
+var temporalReservoirTexture: texture_2d<f32>;
 
 @group(0) @binding(3)
 var hitPositionTexture: texture_2d<f32>;
@@ -142,60 +142,36 @@ var hitPositionTexture: texture_2d<f32>;
 var hitNormalTexture: texture_2d<f32>;
 
 @group(0) @binding(5)
-var rayDirectionTexture: texture_2d<f32>;
-
-@group(0) @binding(6)
-var prevTemporalReservoirTexture: texture_2d<f32>;
-
-@group(0) @binding(7)
-var prevTemporalRadianceTexture: texture_2d<f32>;
-
-@group(0) @binding(8)
-var prevHitPositionTexture: texture_2d<f32>;
-
-@group(0) @binding(9)
-var prevHitNormalTexture: texture_2d<f32>;
-
-@group(0) @binding(10)
 var prevWorldPositionTexture: texture_2d<f32>;
 
-@group(0) @binding(11)
+@group(0) @binding(6)
 var prevNormalTexture: texture_2d<f32>;
 
-@group(0) @binding(12)
+@group(0) @binding(7)
 var motionVectorTexture: texture_2d<f32>;
 
-@group(0) @binding(13)
+@group(0) @binding(8)
 var prevMotionVectorTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
-var hitTriangleTexture: texture_2d<f32>;
-
-@group(1) @binding(1)
 var<storage, read> aMeshTriangleIndexRanges: array<MeshTriangleRange>;
 
-@group(1) @binding(2)
+@group(1) @binding(1)
 var<storage, read> aMeshMaterials: array<Material>;
 
-@group(1) @binding(3)
+@group(1) @binding(2)
 var<storage, read> aSceneBVHNodes: array<BVHNode2>;
 
-@group(1) @binding(4)
+@group(1) @binding(3)
 var<storage, read> aSceneVertexPositions: array<VertexFormat>;
 
-@group(1) @binding(5)
+@group(1) @binding(4)
 var<storage, read> aiSceneTriangleIndices: array<u32>;
 
-@group(1) @binding(6)
-var blueNoiseTexture: texture_2d<f32>;
-
-@group(1) @binding(7)
-var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
-
-@group(1) @binding(8)
+@group(1) @binding(5)
 var<uniform> defaultUniformBuffer: DefaultUniformData;
 
-@group(1) @binding(9)
+@group(1) @binding(6)
 var textureSampler: sampler;
 
 struct VertexOutput 
@@ -206,10 +182,7 @@ struct VertexOutput
 
 struct FragmentOutput 
 {
-    @location(0) mRadiance: vec4<f32>,
-    @location(1) mReservoir: vec4<f32>,
-    @location(2) mHitPosition: vec4<f32>,
-    @location(3) mHitNormal: vec4<f32>
+    @location(0) mRadiance: vec4<f32>
 };
 
 @vertex
@@ -229,27 +202,41 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 {
     var output: FragmentOutput;
 
-    let worldPosition: vec4<f32> = textureSample(
-        worldPositionTexture,
-        textureSampler,
-        in.uv.xy
-    );
-
-    let normal: vec4<f32> = textureSample(
-        normalTexture,
-        textureSampler,
-        in.uv.xy
-    );
-
-    let hitPosition: vec4<f32> = textureSample(
-        hitPositionTexture,
-        textureSampler,
-        in.uv.xy
-    );
-
     let screenCoord: vec2<u32> = vec2<u32>(
         u32(in.uv.x * f32(defaultUniformBuffer.miScreenWidth)),
         u32(in.uv.y * f32(defaultUniformBuffer.miScreenWidth)) 
+    );
+
+
+    let centerWorldPosition: vec4<f32> = textureLoad(
+        worldPositionTexture,
+        screenCoord,
+        0
+    );
+
+    let iMesh: u32 = u32(centerWorldPosition.w);
+    if(dot(aMeshMaterials[iMesh].mEmissive.xyz, aMeshMaterials[iMesh].mEmissive.xyz) > 0.0f)
+    {
+        output.mRadiance = vec4<f32>(aMeshMaterials[iMesh].mEmissive.xyz, 1.0f);
+        return output;
+    }
+
+    let normal: vec4<f32> = textureLoad(
+        normalTexture,
+        screenCoord,
+        0
+    );
+
+    let hitPosition: vec4<f32> = textureLoad(
+        hitPositionTexture,
+        screenCoord,
+        0
+    );
+
+    let hitNormal: vec4<f32> = textureLoad(
+        hitNormalTexture,
+        screenCoord,
+        0
     );
 
     var randomResult: RandomResult = initRand(
@@ -275,227 +262,129 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let fValidHistory: f32 = 1.0f - fDisocclusion;
 
     var result: TemporalRestirResult;
-    result.mReservoir = textureLoad(
-        prevTemporalReservoirTexture,
-        prevScreenCoord,
-        0) * fValidHistory;
-    result.mRadiance = textureLoad(
-        prevTemporalRadianceTexture,
-        prevScreenCoord,
-        0) * fValidHistory;
-    result.mHitPosition = textureLoad(
-        prevHitPositionTexture,
-        prevScreenCoord,
-        0) * fValidHistory;
-    result.mHitNormal = textureLoad(
-        prevHitNormalTexture,
-        prevScreenCoord,
-        0) * fValidHistory;
-
-    var bTraceRay: bool = false;
-    var rayDirection: vec3<f32> = normalize(hitPosition.xyz - worldPosition.xyz);
-    if(defaultUniformBuffer.miFrame > 0 && defaultUniformBuffer.miFrame % 4 == 0)
-    {
-        rayDirection = normalize(result.mHitPosition.xyz - worldPosition.xyz);
-        bTraceRay = true;
-    }
-
-    let fPerSampleSize: f32 = 0.1f;
-    let fReservoirSize: f32 = 10.0f;
-    result = temporalRestir(
-        result,
-        worldPosition.xyz,
-        normal.xyz,
-        in.uv.xy,
-        rayDirection,
-        fReservoirSize,
-        1.0f,
-        randomResult,
-        0u,
-        fPerSampleSize,
-        bTraceRay
-    );
-
-    let iMesh: u32 = u32(floor(ceil(worldPosition.w - fract(worldPosition.w) - 0.5f)));
-
-    result = permutationSampling(
-        result,
-        vec2i(i32(screenCoord.x), i32(screenCoord.y)),
-        worldPosition.xyz,
-        normal.xyz,
-        i32(iMesh),
-        fReservoirSize,
-        randomResult,
-        fPerSampleSize * 0.1f
-    );
-
-    result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
-    output.mRadiance = result.mRadiance * result.mReservoir.w;
-    output.mReservoir = result.mReservoir;
-    output.mHitPosition = result.mHitPosition;
-    output.mHitNormal = result.mHitNormal;
-    output.mHitNormal.w = f32(result.miHitTriangle);
-
-    // emissive surface itself
-    let meshMaterial: Material = aMeshMaterials[iMesh];
-    if(dot(meshMaterial.mEmissive.xyz, meshMaterial.mEmissive.xyz) > 0.0f)
-    {
-        output.mRadiance = vec4<f32>(meshMaterial.mEmissive.xyz, 1.0f);
-        output.mReservoir = vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
-    }
-
-    textureStore(
-        sampleRadianceTexture,
+    var resultReservoir: vec4<f32> = textureLoad(
+        temporalReservoirTexture,
         screenCoord,
-        result.mSampleRadiance
-    );
-
-    return output;
-}
-
-/*
-**
-*/
-fn temporalRestir(
-    prevResult: TemporalRestirResult,
-
-    worldPosition: vec3<f32>,
-    normal: vec3<f32>,
-    inputTexCoord: vec2<f32>,
-    rayDirection: vec3<f32>,
-
-    fMaxTemporalReservoirSamples: f32,
-    fJacobian: f32,
-    randomResult: RandomResult,
-    iSampleIndex: u32,
-    fM: f32,
-    bTraceRay: bool) -> TemporalRestirResult
-{
-    var ret: TemporalRestirResult = prevResult;
-
-    let textureSize: vec2u = textureDimensions(worldPositionTexture);
-    let inputImageCoord: vec2u = vec2u(
-        u32(inputTexCoord.x * f32(textureSize.x)),
-        u32(inputTexCoord.y * f32(textureSize.y))
-    );
-
-    let fOneOverPDF: f32 = 1.0f / PI;
-    ret.mRandomResult = randomResult;
-    
-    ret.mRandomResult = nextRand(ret.mRandomResult.miSeed);
-    let fRand0: f32 = ret.mRandomResult.mfNum;
-    ret.mRandomResult = nextRand(ret.mRandomResult.miSeed);
-    let fRand1: f32 = ret.mRandomResult.mfNum;
-    ret.mRandomResult = nextRand(ret.mRandomResult.miSeed);
-    let fRand2: f32 = ret.mRandomResult.mfNum;
-
-    var intersectionInfo: IntersectBVHResult;
-    if(bTraceRay)
-    {
-        var ray: Ray;
-        ray.mOrigin = vec4<f32>(worldPosition + rayDirection * 0.01f, 1.0f);
-        ray.mDirection = vec4<f32>(rayDirection, 1.0f);
-        intersectionInfo.miHitTriangle = UINT32_MAX;
-        intersectionInfo = intersectBVH4(ray, 0u);
-        if(length(intersectionInfo.mHitPosition.xyz) >= RAY_LENGTH)
-        {
-            intersectionInfo.miHitTriangle = UINT32_MAX;
-        }
-    }
-
-    // get the non-disoccluded and non-out-of-bounds pixel
-    var iDisoccluded: i32 = 1;
-    var prevInputTexCoord: vec2<f32> = getPreviousScreenUV(inputTexCoord);
-    let prevImageCoord: vec2<u32> = vec2<u32>(
-        u32(prevInputTexCoord.x * f32(textureSize.x)),
-        u32(prevInputTexCoord.y * f32(textureSize.y))
-    );
-    if(!isPrevUVOutOfBounds(inputTexCoord) && !isDisoccluded2(inputTexCoord, prevInputTexCoord))
-    {
-        iDisoccluded = 0;
-    }
-
+        0) * fValidHistory;
     var candidateHitPosition: vec4<f32> = textureLoad(
         hitPositionTexture,
-        inputImageCoord,
-        0
-    );
+        screenCoord,
+        0) * fValidHistory;
     var candidateHitNormal: vec4<f32> = textureLoad(
         hitNormalTexture,
-        inputImageCoord,
-        0
-    );
+        screenCoord,
+        0) * fValidHistory;
 
-    var iHitTriangle: u32 = u32(candidateHitPosition.w);
-    if(bTraceRay)
+    var iCandidateHitTriangle: u32 = u32(candidateHitPosition.w);
+
+    let kfSampleRadius: f32 = 20.0f;
+    let kiNumNeighbors: u32 = 20u;
+    var fCandidateJabian: f32 = 1.0f;
+    for(var iNeighbor: u32 = 0u; iNeighbor < kiNumNeighbors; iNeighbor++)
     {
-        candidateHitPosition = vec4<f32>(intersectionInfo.mHitPosition, f32(intersectionInfo.miHitTriangle));
-        candidateHitNormal = vec4<f32>(intersectionInfo.mHitNormal, 1.0f);
-        iHitTriangle = intersectionInfo.miHitTriangle;
-    }
-    else 
-    {
-        var hitInfo: vec4<f32> = textureLoad(
-            hitTriangleTexture,
-            inputImageCoord,
+        randomResult = nextRand(randomResult.miSeed);
+        var fOffsetX: f32 = randomResult.mfNum;
+        randomResult = nextRand(randomResult.miSeed);
+        var fOffsetY: f32 = randomResult.mfNum;
+
+        var iOffsetX: i32 = i32(fOffsetX * kfSampleRadius);
+        var iOffsetY: i32 = i32(fOffsetY * kfSampleRadius);
+
+        let sampleScreenCoord: vec2<u32> = vec2<u32>(
+            u32(max(i32(screenCoord.x) + iOffsetX, 0)),
+            u32(max(i32(screenCoord.y) + iOffsetY, 0))
+        );
+
+        let neighborWorldPosition: vec4<f32> = textureLoad(
+            worldPositionTexture,
+            sampleScreenCoord,
             0
         );
-        iHitTriangle = u32(hitInfo.x);
+        let neighborNormal: vec4<f32> = textureLoad(
+            normalTexture,
+            sampleScreenCoord,
+            0
+        );
+        var neighborTemporalReservoir: vec4<f32> = textureLoad(
+            temporalReservoirTexture,
+            sampleScreenCoord,
+            0
+        );
+        var neighborTemporalHitPosition: vec4<f32> = textureLoad(
+            hitPositionTexture,
+            sampleScreenCoord,
+            0
+        );
+        var neighborTemporalHitNormal: vec4<f32> = textureLoad(
+            hitNormalTexture,
+            sampleScreenCoord,
+            0
+        );
+
+        let centerToNeighborHitPointUnNormalized: vec3<f32> = neighborTemporalHitPosition.xyz - centerWorldPosition.xyz;
+        let neighborToNeighborHitPointUnNormalized: vec3<f32> = neighborTemporalHitPosition.xyz - neighborWorldPosition.xyz;
+        let centerToNeighborHitPointNormalized: vec3<f32> = normalize(centerToNeighborHitPointUnNormalized);
+        let neighborToNeighborHitPointNormalized: vec3<f32> = normalize(neighborToNeighborHitPointUnNormalized);
+        
+        var fJacobian: f32 = 1.0f;
+
+        // neighbor distance to hit position difference
+        let fCenterToHitPointLength: f32 = length(centerToNeighborHitPointUnNormalized);
+        let fNeighborToHitPointLength: f32 = length(neighborToNeighborHitPointUnNormalized);
+        fJacobian *= ((fCenterToHitPointLength * fCenterToHitPointLength) / (fNeighborToHitPointLength * fNeighborToHitPointLength));
+        fJacobian = clamp(fJacobian, 0.0f, 1.0f);
+
+        // compare normals for jacobian
+        let fDP0: f32 = max(dot(neighborTemporalHitNormal.xyz, centerToNeighborHitPointNormalized * -1.0f), 0.0f);
+        var fDP1: f32 = max(dot(neighborTemporalHitNormal.xyz, neighborToNeighborHitPointNormalized * -1.0f), 1.0e-4f);
+        fJacobian = fDP0 / fDP1;
+
+fJacobian = 1.0f;
+
+        randomResult = nextRand(randomResult.miSeed);
+        var updateResult: ReservoirResult = updateReservoir(
+            resultReservoir,
+            neighborTemporalReservoir.y * fJacobian,
+            neighborTemporalReservoir.z,
+            randomResult.mfNum
+        );
+        
+        if(updateResult.mbExchanged)
+        {
+            candidateHitPosition = neighborTemporalHitPosition;
+            candidateHitNormal = neighborTemporalHitNormal;
+            fCandidateJabian = fJacobian;
+
+            iCandidateHitTriangle = u32(neighborTemporalHitPosition.w);
+        }
+
+        resultReservoir = updateResult.mReservoir;
     }
-    
-    var candidateRadiance: vec4<f32> = vec4<f32>(0.0f, 0.0f, 0.0f, 1.0f);
-    var candidateRayDirection: vec4<f32> = vec4<f32>(rayDirection, 1.0f);
-    var fRadianceDP: f32 = max(dot(normal, rayDirection), 0.0f);
-    var fDistanceAttenuation: f32 = 1.0f;
-    if(iHitTriangle != UINT32_MAX)
+
+    let fOneOverPDF: f32 = 1.0f / PI;
+    var resultRadiance = vec3<f32>(0.0f, 0.0f, 0.0f);
+
+    var ray: Ray;
+    ray.mOrigin = centerWorldPosition;
+    ray.mDirection = vec4<f32>(normalize(candidateHitPosition.xyz - centerWorldPosition.xyz), 1.0f);
+    var intersectionInfo: IntersectBVHResult = intersectBVH4(ray, 0u);
     {
-        let iHitMesh: u32 = getMeshForTriangleIndex(iHitTriangle);
+        let iHitMesh: u32 = getMeshForTriangleIndex(intersectionInfo.miHitTriangle);
         let material: Material = aMeshMaterials[iHitMesh];
-        candidateRadiance = vec4<f32>(material.mEmissive.xyz, 1.0f);
+        resultRadiance = material.mEmissive.xyz;
 
         // distance for on-screen radiance and ambient occlusion
-        var fDistance: f32 = length(candidateHitPosition.xyz - worldPosition.xyz);
-        fDistanceAttenuation = max(1.0f / max(fDistance * fDistance, 1.0f), 1.0f);
-    }    
+        var fDistance: f32 = length(candidateHitPosition.xyz - centerWorldPosition.xyz);
+        let fDistanceAttenuation: f32 = max(1.0f / max(fDistance * fDistance, 1.0f), 1.0f);
 
-    candidateRadiance.x = candidateRadiance.x * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
-    candidateRadiance.y = candidateRadiance.y * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
-    candidateRadiance.z = candidateRadiance.z * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
-    
-    ret.mSampleRadiance = candidateRadiance;
-
-    // reservoir
-    let fLuminance: f32 = computeLuminance(candidateRadiance.xyz);
-
-    var fPHat: f32 = clamp(fLuminance, 0.0f, 1.0f);
-    var updateResult: ReservoirResult = updateReservoir(
-        prevResult.mReservoir,
-        fPHat,
-        fM,
-        fRand2);
-    
-    if(updateResult.mbExchanged)
-    {
-        ret.mRadiance = candidateRadiance;
-        ret.mHitPosition = candidateHitPosition;
-        ret.mHitNormal = candidateHitNormal;
-        ret.mRayDirection = candidateRayDirection;
-    }
-
-    // clamp reservoir
-    if(updateResult.mReservoir.z > fMaxTemporalReservoirSamples)
-    {
-        let fPct: f32 = fMaxTemporalReservoirSamples / updateResult.mReservoir.z;
-        updateResult.mReservoir.x *= fPct;
-        updateResult.mReservoir.z = fMaxTemporalReservoirSamples;
+        let rayDirection: vec3<f32> = normalize(candidateHitPosition.xyz - centerWorldPosition.xyz);
+        let fRadianceDP: f32 = max(dot(normal.xyz, rayDirection), 0.0f);
+        resultRadiance = resultRadiance * fCandidateJabian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
     }
     
-    ret.mReservoir = updateResult.mReservoir;
-    ret.mfNumValidSamples += fM * f32(fLuminance > 0.0f);
-    
-    ret.miHitTriangle = iHitTriangle;
+    output.mRadiance = vec4<f32>(resultRadiance.xyz, 1.0f);
 
-    return ret;
+    return output;
 }
 
 /*
@@ -570,7 +459,9 @@ fn nextRand(s: u32) -> RandomResult
     return retResult;
 }
 
-/////
+/*
+**
+*/
 fn getPreviousScreenUV(
     screenUV: vec2<f32>) -> vec2<f32>
 {
@@ -1015,174 +906,6 @@ fn uniformSampling(
     ray.mfT = vec4<f32>(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
 
     return ray;
-}
-
-/*
-**
-*/
-fn permutationSampling(
-    result: TemporalRestirResult,
-    origScreenCoord: vec2<i32>,
-    worldPosition: vec3<f32>,
-    normal: vec3<f32>,
-    iCenterMeshID: i32,
-    fReservoirSize : f32,
-    randomResult: RandomResult,
-    fM: f32
-) -> TemporalRestirResult
-{
-    var ret: TemporalRestirResult = result;
-    
-    let fPlaneD: f32 = -dot(worldPosition, normal);
-
-    // permutation samples
-    //let iNumPermutations: i32 = uniformData.miNumTemporalRestirSamplePermutations + 1;
-    for(var iSample: i32 = 1; iSample < 5; iSample++)
-    {
-        var aXOR: array<vec2<i32>, 4>;
-        aXOR[0] = vec2<i32>(3, 3);
-        aXOR[1] = vec2<i32>(2, 1);
-        aXOR[2] = vec2<i32>(1, 2);
-        aXOR[3] = vec2<i32>(3, 3);
-        
-        var aOffsets: array<vec2<i32>, 4>;
-        aOffsets[0] = vec2<i32>(-1, -1);
-        aOffsets[1] = vec2<i32>(1, 1);
-        aOffsets[2] = vec2<i32>(-1, 1);
-        aOffsets[3] = vec2<i32>(1, -1);
-
-        // apply permutation offset to screen coordinate, converting to uv after
-        let iFrame: i32 = i32(defaultUniformBuffer.miFrame);
-        let iIndex0: i32 = iFrame & 3;
-        let iIndex1: i32 = (iSample + (iFrame ^ 1)) & 3;
-        let offset: vec2<i32> = aOffsets[iIndex0] + aOffsets[iIndex1];
-        let screenCoord: vec2<i32> = (origScreenCoord + offset) ^ aXOR[iFrame & 3]; 
-        
-        var sampleRayDirection: vec3<f32> = vec3<f32>(0.0f, 0.0f, 0.0f);
-        var ray: Ray;
-
-        // permutation uv
-        var sampleUV: vec2<f32> = vec2<f32>(
-            ceil(f32(screenCoord.x) + 0.5f) / f32(defaultUniformBuffer.miScreenWidth),
-            ceil(f32(screenCoord.y) + 0.5f) / f32(defaultUniformBuffer.miScreenHeight));
-
-        // get sample world position, normal, and ray direction
-        var fJacobian: f32 = 1.0f;
-        {
-            // back project to previous frame's screen coordinate
-            var motionVector: vec2<f32> = textureLoad(
-                motionVectorTexture,
-                screenCoord,
-                0).xy;
-            sampleUV -= motionVector;
-
-            // sample world position
-            let sampleWorldPosition: vec4<f32> = textureLoad(
-                prevWorldPositionTexture,
-                screenCoord,
-                0);
-
-            let sampleNormal: vec3<f32> = textureLoad(
-                prevNormalTexture,
-                screenCoord,
-                0).xyz;
-
-            // neighbor normal difference check 
-            let fDP: f32 = dot(sampleNormal, normal);
-            //if(fDP <=  0.6f)
-            //{
-            //    continue;
-            //}
-
-            // neightbor depth difference check
-            let fSampleDepth: f32 = fract(sampleWorldPosition.w);
-            //let fDepthDiff: f32 = abs(fCenterDepth - fSampleDepth);
-            //if(fDepthDiff >= 0.05f)
-            //{
-            //    continue;
-            //} 
-
-            let fPlaneDistance: f32 = dot(normal.xyz, sampleWorldPosition.xyz) + fPlaneD;
-            //if(abs(fPlaneDistance) >= 0.2f)
-            //{
-            //    continue;
-            //}
-
-            // mesh id difference check
-            let iSampleMeshID: i32 = i32(floor((sampleWorldPosition.w - fSampleDepth) + 0.5f));
-            //if(iSampleMeshID != iCenterMeshID)
-            //{
-            //    continue;
-            //}
-
-            // hit point and hit normal for jacobian
-            let sampleHitPoint: vec3<f32> = textureLoad(
-                prevHitPositionTexture,
-                screenCoord,
-                0).xyz;
-
-            //if(checkClipSpaceBlock(
-            //    worldPosition.xyz, 
-            //    normalize(worldPosition.xyz - sampleHitPoint)))
-            //{
-            //    continue;
-            //}
-
-            var neighborHitNormal: vec3<f32> = textureLoad(
-                prevHitNormalTexture,
-                screenCoord,
-                0).xyz;
-            let centerToNeighborHitPointUnNormalized: vec3<f32> = sampleHitPoint - worldPosition.xyz;
-            let neighborToNeighborHitPointUnNormalized: vec3<f32> = sampleHitPoint - sampleWorldPosition.xyz;
-            let centerToNeighborHitPointNormalized: vec3<f32> = normalize(centerToNeighborHitPointUnNormalized);
-            let neighborToNeighborHitPointNormalized: vec3<f32> = normalize(neighborToNeighborHitPointUnNormalized);
-            
-            // compare normals for jacobian
-            let fDP0: f32 = max(dot(neighborHitNormal, centerToNeighborHitPointNormalized * -1.0f), 0.0f);
-            var fDP1: f32 = max(dot(neighborHitNormal, neighborToNeighborHitPointNormalized * -1.0f), 1.0e-4f);
-            fJacobian = fDP0 / fDP1;
-
-            // compare length for jacobian 
-            let fCenterToHitPointLength: f32 = length(centerToNeighborHitPointUnNormalized);
-            let fNeighborToHitPointLength: f32 = length(neighborToNeighborHitPointUnNormalized);
-            fJacobian *= ((fCenterToHitPointLength * fCenterToHitPointLength) / (fNeighborToHitPointLength * fNeighborToHitPointLength));
-            fJacobian = clamp(fJacobian, 0.0f, 1.0f);
-
-            sampleRayDirection = centerToNeighborHitPointNormalized;
-        }
-
-        ret.miHitTriangle = UINT32_MAX;
-        ret = temporalRestir(
-            ret,
-
-            worldPosition.xyz,
-            normal,
-            sampleUV,
-            sampleRayDirection,
-
-            fReservoirSize,
-            fJacobian,
-            randomResult,
-            u32(iSample),
-            fM, 
-            false);
-
-    }   // for sample = 0 to num permutation samples  
-
-    //ret.mReservoir.z = result.mReservoir.z;
-
-    var ray: Ray;
-    ray.mDirection = vec4<f32>(ret.mRayDirection.xyz, 1.0f);
-    ray.mOrigin = vec4<f32>(worldPosition.xyz + result.mRayDirection.xyz * 0.01f, 1.0f);
-    var intersectionInfo: IntersectBVHResult;
-    intersectionInfo = intersectBVH4(ray, 0u);
-    if((length(result.mHitPosition.xyz) >= RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) < RAY_LENGTH) || 
-    (length(result.mHitPosition.xyz) < RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) >= RAY_LENGTH))
-    {
-        ret = result;
-    }
-
-    return ret;
 }
 
 /*

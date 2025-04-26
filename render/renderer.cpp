@@ -151,7 +151,7 @@ namespace Render
         defaultUniformData.mCameraPosition = float4(mCameraPosition, 1.0f);
         defaultUniformData.mCameraLookDir = float4(mCameraLookAt, 1.0f);
         defaultUniformData.miNumMeshes = (uint32_t)maMeshTriangleRanges.size();
-        defaultUniformData.mLightRadiance = float4(100.0f, 100.0f, 100.0f, 1.0f);
+        defaultUniformData.mLightRadiance = float4(50.0f, 50.0f, 50.0f, 1.0f);
 
         //sLightDirection = sLightDirection + float3(0.01f, 0.0f, -0.00f);
         defaultUniformData.mLightDirection = float4(normalize(sLightDirection), 1.0f);
@@ -747,7 +747,9 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["Debug Irradiance Cache Graphics"]->mOutputImageAttachments["Irradiance Cache Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Debug Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Ray Tracing Composite Graphics"]->mOutputImageAttachments["Ray Tracing Composite Output"];
-        wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
+        //wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
+        wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Spatial Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
+        //wgpu::Texture& swapChainTexture = maRenderJobs["Spherical Harmonics Emissive Graphics"]->mOutputImageAttachments["Emissive Inverse Spherical Harmonics Output"];
         //assert(maRenderJobs.find("Mesh Selection Graphics") != maRenderJobs.end());
         //assert(maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.find("Selection Output") != maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.end());
 

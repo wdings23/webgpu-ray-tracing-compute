@@ -34,9 +34,12 @@ var directRadianceTexture: texture_2d<f32>;
 var diffuseRadianceTexture: texture_2d<f32>;
 
 @group(0) @binding(2)
-var rayDirectionTexture: texture_2d<f32>;
+var emissiveRadianceTexture: texture_2d<f32>;
 
 @group(0) @binding(3)
+var rayDirectionTexture: texture_2d<f32>;
+
+@group(0) @binding(4)
 var materialTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
@@ -91,6 +94,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         in.uv.xy
     );
 
+    let emissiveRadiance: vec4<f32> = textureSample(
+        emissiveRadianceTexture,
+        textureSampler,
+        in.uv.xy
+    );
+
     let material: vec4<f32> = textureSample(
         materialTexture,
         textureSampler,
@@ -98,7 +107,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     );
 
     output.mRadiance = vec4<f32>(
-        material.xyz * ((directRadiance.xyz + diffuseRadiance.xyz) * rayDirection.w), 
+        material.xyz * ((directRadiance.xyz + diffuseRadiance.xyz + emissiveRadiance.xyz) * rayDirection.w), 
         1.0f
     );
     return output;
