@@ -398,7 +398,8 @@ void initGraphics()
     //desc.mMeshFilePath = "Vinci_SurfacePro11";
     //desc.mMeshFilePath = "bistro-total";
     //desc.mMeshFilePath = "little-tokyo";
-    desc.mMeshFilePath = "ramen-shop";
+    //desc.mMeshFilePath = "ramen-shop";
+    desc.mMeshFilePath = "ramen-shop-with-light";
     desc.mRenderJobPipelineFilePath = "render-jobs.json";
     desc.mpSampler = &gSampler;
     gRenderer.setup(desc);

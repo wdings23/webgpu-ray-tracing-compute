@@ -128,11 +128,28 @@ struct SHOutput
     mCoefficients2: vec4<f32>
 };
 
-
 struct IrradianceCacheQueueEntry
 {
     mPosition: vec4<f32>,
     mNormal: vec4<f32>
+};
+
+struct BVHNode2
+{
+    mMinBound: vec4<f32>,
+    mMaxBound: vec4<f32>,
+    mCentroid: vec4<f32>,
+    
+    miChildren0: u32,
+    miChildren1: u32,
+    miPrimitiveID: u32,
+    miMeshID: u32,
+};
+
+struct MeshTrianglerRange
+{
+    miStart: u32,
+    miEnd: u32,
 };
 
 struct DefaultUniformData
@@ -210,17 +227,6 @@ var<storage, read> irradianceCache: array<IrradianceCacheEntry>;
 @group(1) @binding(0)
 var<uniform> uniformData: UniformData;
 
-struct BVHNode2
-{
-    mMinBound: vec4<f32>,
-    mMaxBound: vec4<f32>,
-    mCentroid: vec4<f32>,
-    
-    miChildren0: u32,
-    miChildren1: u32,
-    miPrimitiveID: u32,
-    miMeshID: u32,
-};
 
 @group(1) @binding(1)
 var<storage, read> aSceneBVHNodes: array<BVHNode2>;
@@ -238,9 +244,15 @@ var blueNoiseTexture: texture_2d<f32>;
 var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(6)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var hitTriangleTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(7)
+var<storage, read> meshTrianglerRanges: array<MeshTrianglerRange>;
+
+@group(1) @binding(8)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(9)
 var textureSampler: sampler;
 
 @vertex
@@ -428,6 +440,17 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             sampleRadianceTexture, 
             screenCoord,
             result.mSampleRadiance);
+
+        var iHitMesh: u32 = UINT32_MAX; 
+        if(result.mIntersectionResult.miHitTriangle != UINT32_MAX) 
+        {
+            iHitMesh = getMeshForTriangleIndex(result.mIntersectionResult.miHitTriangle);
+        }
+        textureStore(
+            hitTriangleTexture,
+            screenCoord,
+            vec4<f32>(fIntersection, f32(iHitMesh), 0.0f, 0.0f)
+        );
     }
 
     var firstResult: TemporalRestirResult = result;
@@ -1899,4 +1922,23 @@ fn decodeFromSphericalHarmonicCoefficients(
     decoded = clamp(decoded, vec3<f32>(0.0f, 0.0f, 0.0f), maxRadiance);
 
     return decoded;
+}
+
+/*
+**
+*/
+fn getMeshForTriangleIndex(iTriangleIndex: u32) -> u32
+{
+    var iRet: u32 = 0u;
+    for(var i: u32 = 0u; i < defaultUniformBuffer.miNumMeshes; i++)
+    {
+        if(iTriangleIndex >= meshTrianglerRanges[i].miStart && 
+           iTriangleIndex <= meshTrianglerRanges[i].miEnd)
+        {
+            iRet = i;
+            break;
+        }
+    }
+
+    return iRet;
 }

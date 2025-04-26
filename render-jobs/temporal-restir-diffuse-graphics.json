@@ -175,6 +175,20 @@
             "shader_stage": "fragment",
             "usage": "write_only_storage",
             "external": "true"
+        },
+        {
+            "name": "hitTriangleTexture",
+            "type": "texture",
+            "shader_stage": "fragment",
+            "usage": "write_only_storage",
+            "external": "true"
+        },
+        {
+            "name": "meshTriangleIndexRanges",
+            "type": "buffer",
+            "shader_stage": "fragment",
+            "usage": "write_only_storage",
+            "external": "true"
         }
         
     ],

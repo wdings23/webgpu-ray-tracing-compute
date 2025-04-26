@@ -29,6 +29,11 @@
             "Name": "sampleRadianceTexture",
             "Type": "Render Target",
             "Format": "rgba32float"
+        },
+        {
+            "Name": "hitTriangleTexture",
+            "Type": "Render Target",
+            "Format": "rgba32float"
         }
     ]
 }
