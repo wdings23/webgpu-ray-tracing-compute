@@ -1943,8 +1943,8 @@ fn getMeshForTriangleIndex(iTriangleIndex: u32) -> u32
     var iRet: u32 = 0u;
     for(var i: u32 = 0u; i < defaultUniformBuffer.miNumMeshes; i++)
     {
-        if(iTriangleIndex >= meshTrianglerRanges[i].miStart && 
-           iTriangleIndex <= meshTrianglerRanges[i].miEnd)
+        if(iTriangleIndex >= meshTrianglerRanges[i].miStart / 3 && 
+           iTriangleIndex <= meshTrianglerRanges[i].miEnd / 3)
         {
             iRet = i;
             break;

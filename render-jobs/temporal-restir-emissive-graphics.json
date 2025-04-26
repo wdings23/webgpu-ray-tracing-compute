@@ -59,6 +59,11 @@
             "ParentJobName": "Diffuse Temporal Restir Graphics"
         },
         {
+            "Name": "Sample Ray Direction Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics"
+        },
+        {
             "Name": "Previous Emissive Temporal Reservoir Output",
             "Type": "TextureInput",
             "ParentJobName": "Copy Render Targets"
@@ -141,6 +146,13 @@
             "name" : "train-index-buffer",
             "type" : "buffer",
             "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        },
+        {
+            "name": "blueNoiseTexture",
+            "type": "texture",
+            "shader_stage": "fragment",
             "usage": "read_only_storage",
             "external": "true"
         }

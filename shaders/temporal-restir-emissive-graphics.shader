@@ -21,6 +21,7 @@ struct TemporalRestirResult
     mDirectSunLight: vec4<f32>,
     mRandomResult: RandomResult,
     mfNumValidSamples: f32,
+    miHitTriangle: u32,
 };
 
 struct Material
@@ -141,27 +142,30 @@ var hitPositionTexture: texture_2d<f32>;
 var hitNormalTexture: texture_2d<f32>;
 
 @group(0) @binding(5)
-var prevTemporalReservoirTexture: texture_2d<f32>;
+var rayDirectionTexture: texture_2d<f32>;
 
 @group(0) @binding(6)
-var prevTemporalRadianceTexture: texture_2d<f32>;
+var prevTemporalReservoirTexture: texture_2d<f32>;
 
 @group(0) @binding(7)
-var prevHitPositionTexture: texture_2d<f32>;
+var prevTemporalRadianceTexture: texture_2d<f32>;
 
 @group(0) @binding(8)
-var prevHitNormalTexture: texture_2d<f32>;
+var prevHitPositionTexture: texture_2d<f32>;
 
 @group(0) @binding(9)
-var prevWorldPositionTexture: texture_2d<f32>;
+var prevHitNormalTexture: texture_2d<f32>;
 
 @group(0) @binding(10)
-var prevNormalTexture: texture_2d<f32>;
+var prevWorldPositionTexture: texture_2d<f32>;
 
 @group(0) @binding(11)
-var motionVectorTexture: texture_2d<f32>;
+var prevNormalTexture: texture_2d<f32>;
 
 @group(0) @binding(12)
+var motionVectorTexture: texture_2d<f32>;
+
+@group(0) @binding(13)
 var prevMotionVectorTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
@@ -183,9 +187,12 @@ var<storage, read> aSceneVertexPositions: array<VertexFormat>;
 var<storage, read> aiSceneTriangleIndices: array<u32>;
 
 @group(1) @binding(6)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var blueNoiseTexture: texture_2d<f32>;
 
 @group(1) @binding(7)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(8)
 var textureSampler: sampler;
 
 struct VertexOutput 
@@ -237,6 +244,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         in.uv.xy
     );
 
+    let screenCoord: vec2<u32> = vec2<u32>(
+        u32(in.uv.x * f32(defaultUniformBuffer.miScreenWidth)),
+        u32(in.uv.y * f32(defaultUniformBuffer.miScreenWidth)) 
+    );
+
     var randomResult: RandomResult = initRand(
         u32(in.uv.x * 100.0f + in.uv.y * 200.0f) + u32(defaultUniformBuffer.mfRand0 * 100.0f),
         u32(in.pos.x * 10.0f + in.pos.z * 20.0f) + u32(defaultUniformBuffer.mfRand0 * 100.0f),
@@ -277,8 +289,46 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         prevScreenCoord,
         0) * fValidHistory;
 
-    let rayDirection: vec3<f32> = normalize(hitPosition.xyz - worldPosition.xyz);
-    
+    var sampleRayDirection: vec3f = vec3f(0.0f, 0.0f, 0.0f);
+    {
+        let blueNoiseTextureSize: vec2<u32> = textureDimensions(blueNoiseTexture);
+        let iSample: u32 = 0;
+
+        // switch tile every frame as shown in iTileIndex
+        let iTileSize: u32 = 32u;
+        let iNumTilesX: u32 = (blueNoiseTextureSize.x / iTileSize);
+        let iNumTilesY: u32 = (blueNoiseTextureSize.y / iTileSize);
+        let iNumTotalTiles: u32 = iNumTilesX * iNumTilesY; 
+        var iTileIndex: u32 = (u32(defaultUniformBuffer.miFrame) % (iNumTilesX * iNumTilesY)); 
+        var iTileIndexX: u32 = iTileIndex % iNumTilesX;
+        var iTileIndexY: u32 = (iTileIndex / iNumTilesX) % iNumTilesY; 
+        let iTotalSampleIndex: u32 = u32(defaultUniformBuffer.miFrame) * 4u + u32(iSample);
+        var iOffsetX: u32 = (iTotalSampleIndex % iTileSize) + iTileIndexX * iTileSize;
+        var iOffsetY: u32 = ((iTotalSampleIndex / iTileSize) % iTileSize) + iTileIndexY * iTileSize;
+        var blueNoiseSampleScreenCoord: vec2<u32> = vec2<u32>(
+            ((u32(screenCoord.x) + iOffsetX) % u32(blueNoiseTextureSize.x)),
+            ((u32(screenCoord.y) + iOffsetY) % u32(blueNoiseTextureSize.y))
+        );
+
+        let blueNoise: vec4f = textureLoad(
+            blueNoiseTexture,
+            blueNoiseSampleScreenCoord,
+            0);
+
+        let ray: Ray = uniformSampling(
+            worldPosition.xyz,
+            normal.xyz,
+            blueNoise.x,
+            blueNoise.y);
+        sampleRayDirection = ray.mDirection.xyz;
+    }
+
+    var rayDirection: vec3<f32> = normalize(hitPosition.xyz - worldPosition.xyz);
+    if(defaultUniformBuffer.miFrame > 0 && defaultUniformBuffer.miFrame % 4 == 0)
+    {
+        rayDirection = normalize(result.mHitPosition.xyz - worldPosition.xyz);
+    }
+
     result = temporalRestir(
         result,
         worldPosition.xyz,
@@ -289,7 +339,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         1.0f,
         randomResult,
         0u,
-        1.0f
+        0.1f
     );
 
     result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
@@ -297,6 +347,16 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     output.mReservoir = result.mReservoir;
     output.mHitPosition = result.mHitPosition;
     output.mHitNormal = result.mHitNormal;
+
+    output.mHitNormal.w = f32(result.miHitTriangle);
+
+    let iMesh: u32 = u32(floor(ceil(worldPosition.w - fract(worldPosition.w) - 0.5f)));
+    let meshMaterial: Material = aMeshMaterials[iMesh];
+    if(dot(meshMaterial.mEmissive.xyz, meshMaterial.mEmissive.xyz) > 0.0f)
+    {
+        output.mRadiance = vec4<f32>(meshMaterial.mEmissive.xyz, 1.0f);
+        output.mReservoir = vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
+    }
 
     return output;
 }
@@ -336,7 +396,17 @@ fn temporalRestir(
     ret.mRandomResult = nextRand(ret.mRandomResult.miSeed);
     let fRand2: f32 = ret.mRandomResult.mfNum;
 
-    // reset the ambient occlusion counts on disoccluded pixels
+    var ray: Ray;
+    ray.mOrigin = vec4<f32>(worldPosition + rayDirection * 0.01f, 1.0f);
+    ray.mDirection = vec4<f32>(rayDirection, 1.0f);
+    var intersectionInfo: IntersectBVHResult;
+    intersectionInfo.miHitTriangle = UINT32_MAX;
+    intersectionInfo = intersectBVH4(ray, 0u);
+    if(length(intersectionInfo.mHitPosition.xyz) >= RAY_LENGTH)
+    {
+        intersectionInfo.miHitTriangle = UINT32_MAX;
+    }
+
     var iDisoccluded: i32 = 1;
 
     // get the non-disoccluded and non-out-of-bounds pixel
@@ -350,24 +420,36 @@ fn temporalRestir(
         iDisoccluded = 0;
     }
 
-    var candidateHitPosition: vec4<f32> = textureLoad(
-        hitPositionTexture,
-        inputImageCoord,
-        0
-    );
-    var candidateHitNormal: vec4<f32> = textureLoad(
-        hitNormalTexture,
-        inputImageCoord,
-        0
-    );
+    //var candidateHitPosition: vec4<f32> = textureLoad(
+    //    hitPositionTexture,
+    //    inputImageCoord,
+    //    0
+    //);
+    //var candidateHitNormal: vec4<f32> = textureLoad(
+    //    hitNormalTexture,
+    //    inputImageCoord,
+    //    0
+    //);
+
+    var candidateHitPosition: vec4<f32> = vec4<f32>(intersectionInfo.mHitPosition, f32(intersectionInfo.miHitTriangle));
+    var candidateHitNormal: vec4<f32> = vec4<f32>(intersectionInfo.mHitNormal, 1.0f);
+
+    var iHitTriangle: u32 = u32(candidateHitPosition.w);
+
+    //var hitInfo: vec4<f32> = textureLoad(
+    //    hitTriangleTexture,
+    //    inputImageCoord,
+    //    0
+    //);
+    //iHitTriangle = u32(hitInfo.x);
+    //var iHitMesh: u32 = u32(hitInfo.y);
 
     var candidateRadiance: vec4<f32> = vec4<f32>(0.0f, 0.0f, 0.0f, 1.0f);
     var candidateRayDirection: vec4<f32> = vec4<f32>(rayDirection, 1.0f);
     var fRadianceDP: f32 = max(dot(normal, rayDirection), 0.0f);
     var fDistanceAttenuation: f32 = 1.0f;
-    //if(dot(candidateHitPosition.xyz, candidateHitPosition.xyz) < 100.0f)
+    if(iHitTriangle != UINT32_MAX)
     {
-        let iHitTriangle: u32 = u32(candidateHitPosition.w);
         let iHitMesh: u32 = getMeshForTriangleIndex(iHitTriangle);
         let material: Material = aMeshMaterials[iHitMesh];
         candidateRadiance = vec4<f32>(material.mEmissive.xyz, 1.0f);
@@ -377,9 +459,9 @@ fn temporalRestir(
         fDistanceAttenuation = max(1.0f / max(fDistance * fDistance, 1.0f), 1.0f);
     }    
 
-    candidateRadiance.x = candidateRadiance.x * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
-    candidateRadiance.y = candidateRadiance.y * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
-    candidateRadiance.z = candidateRadiance.z * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
+    //candidateRadiance.x = candidateRadiance.x * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
+    //candidateRadiance.y = candidateRadiance.y * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
+    //candidateRadiance.z = candidateRadiance.z * fJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
     
     ret.mSampleRadiance = candidateRadiance;
 
@@ -412,6 +494,8 @@ fn temporalRestir(
     ret.mReservoir = updateResult.mReservoir;
     ret.mfNumValidSamples += fM * f32(fLuminance > 0.0f);
     
+    ret.miHitTriangle = iHitTriangle;
+
     return ret;
 }
 
@@ -620,8 +704,8 @@ fn getMeshForTriangleIndex(iTriangleIndex: u32) -> u32
     var iRet: u32 = 0u;
     for(var i: u32 = 0u; i < defaultUniformBuffer.miNumMeshes; i++)
     {
-        if(iTriangleIndex >= aMeshTriangleIndexRanges[i].miStart && 
-           iTriangleIndex <= aMeshTriangleIndexRanges[i].miEnd)
+        if(iTriangleIndex >= aMeshTriangleIndexRanges[i].miStart / 3 && 
+           iTriangleIndex <= aMeshTriangleIndexRanges[i].miEnd / 3)
         {
             iRet = i;
             break;
@@ -898,4 +982,38 @@ fn rayTriangleIntersection(
     ret.mIntersectNormal = triNormal.xyz;
 
     return ret;
+}
+
+/*
+**
+*/
+fn uniformSampling(
+    worldPosition: vec3<f32>,
+    normal: vec3<f32>,
+    fRand0: f32,
+    fRand1: f32) -> Ray
+{
+    let fPhi: f32 = 2.0f * PI * fRand0;
+    let fCosTheta: f32 = 1.0f - fRand1;
+    let fSinTheta: f32 = sqrt(1.0f - fCosTheta * fCosTheta);
+    let h: vec3<f32> = vec3<f32>(
+        cos(fPhi) * fSinTheta,
+        sin(fPhi) * fSinTheta,
+        fCosTheta);
+
+    var up: vec3<f32> = vec3<f32>(0.0f, 1.0f, 0.0f);
+    if(abs(normal.y) > 0.999f)
+    {
+        up = vec3<f32>(1.0f, 0.0f, 0.0f);
+    }
+    let tangent: vec3<f32> = normalize(cross(up, normal));
+    let binormal: vec3<f32> = normalize(cross(normal, tangent));
+    let rayDirection: vec3<f32> = normalize(tangent * h.x + binormal * h.y + normal * h.z);
+
+    var ray: Ray;
+    ray.mOrigin = vec4<f32>(worldPosition, 1.0f);
+    ray.mDirection = vec4<f32>(rayDirection, 1.0f);
+    ray.mfT = vec4<f32>(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
+
+    return ray;
 }
