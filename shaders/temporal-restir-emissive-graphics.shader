@@ -323,10 +323,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         sampleRayDirection = ray.mDirection.xyz;
     }
 
+    var bTraceRay: bool = false;
     var rayDirection: vec3<f32> = normalize(hitPosition.xyz - worldPosition.xyz);
     if(defaultUniformBuffer.miFrame > 0 && defaultUniformBuffer.miFrame % 4 == 0)
     {
         rayDirection = normalize(result.mHitPosition.xyz - worldPosition.xyz);
+        bTraceRay = true;
     }
 
     result = temporalRestir(
@@ -339,7 +341,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         1.0f,
         randomResult,
         0u,
-        0.1f
+        0.1f,
+        bTraceRay
     );
 
     result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
@@ -376,7 +379,8 @@ fn temporalRestir(
     fJacobian: f32,
     randomResult: RandomResult,
     iSampleIndex: u32,
-    fM: f32) -> TemporalRestirResult
+    fM: f32,
+    bTraceRay: bool) -> TemporalRestirResult
 {
     var ret: TemporalRestirResult = prevResult;
 
@@ -396,20 +400,22 @@ fn temporalRestir(
     ret.mRandomResult = nextRand(ret.mRandomResult.miSeed);
     let fRand2: f32 = ret.mRandomResult.mfNum;
 
-    var ray: Ray;
-    ray.mOrigin = vec4<f32>(worldPosition + rayDirection * 0.01f, 1.0f);
-    ray.mDirection = vec4<f32>(rayDirection, 1.0f);
     var intersectionInfo: IntersectBVHResult;
-    intersectionInfo.miHitTriangle = UINT32_MAX;
-    intersectionInfo = intersectBVH4(ray, 0u);
-    if(length(intersectionInfo.mHitPosition.xyz) >= RAY_LENGTH)
+    if(bTraceRay)
     {
+        var ray: Ray;
+        ray.mOrigin = vec4<f32>(worldPosition + rayDirection * 0.01f, 1.0f);
+        ray.mDirection = vec4<f32>(rayDirection, 1.0f);
         intersectionInfo.miHitTriangle = UINT32_MAX;
+        intersectionInfo = intersectBVH4(ray, 0u);
+        if(length(intersectionInfo.mHitPosition.xyz) >= RAY_LENGTH)
+        {
+            intersectionInfo.miHitTriangle = UINT32_MAX;
+        }
     }
 
-    var iDisoccluded: i32 = 1;
-
     // get the non-disoccluded and non-out-of-bounds pixel
+    var iDisoccluded: i32 = 1;
     var prevInputTexCoord: vec2<f32> = getPreviousScreenUV(inputTexCoord);
     let prevImageCoord: vec2<u32> = vec2<u32>(
         u32(prevInputTexCoord.x * f32(textureSize.x)),
@@ -420,30 +426,35 @@ fn temporalRestir(
         iDisoccluded = 0;
     }
 
-    //var candidateHitPosition: vec4<f32> = textureLoad(
-    //    hitPositionTexture,
-    //    inputImageCoord,
-    //    0
-    //);
-    //var candidateHitNormal: vec4<f32> = textureLoad(
-    //    hitNormalTexture,
-    //    inputImageCoord,
-    //    0
-    //);
-
-    var candidateHitPosition: vec4<f32> = vec4<f32>(intersectionInfo.mHitPosition, f32(intersectionInfo.miHitTriangle));
-    var candidateHitNormal: vec4<f32> = vec4<f32>(intersectionInfo.mHitNormal, 1.0f);
+    var candidateHitPosition: vec4<f32> = textureLoad(
+        hitPositionTexture,
+        inputImageCoord,
+        0
+    );
+    var candidateHitNormal: vec4<f32> = textureLoad(
+        hitNormalTexture,
+        inputImageCoord,
+        0
+    );
 
     var iHitTriangle: u32 = u32(candidateHitPosition.w);
-
-    //var hitInfo: vec4<f32> = textureLoad(
-    //    hitTriangleTexture,
-    //    inputImageCoord,
-    //    0
-    //);
-    //iHitTriangle = u32(hitInfo.x);
-    //var iHitMesh: u32 = u32(hitInfo.y);
-
+    if(bTraceRay)
+    {
+        candidateHitPosition = vec4<f32>(intersectionInfo.mHitPosition, f32(intersectionInfo.miHitTriangle));
+        candidateHitNormal = vec4<f32>(intersectionInfo.mHitNormal, 1.0f);
+        iHitTriangle = intersectionInfo.miHitTriangle;
+    }
+    else 
+    {
+        var hitInfo: vec4<f32> = textureLoad(
+            hitTriangleTexture,
+            inputImageCoord,
+            0
+        );
+        iHitTriangle = u32(hitInfo.x);
+        var iHitMesh: u32 = u32(hitInfo.y);
+    }
+    
     var candidateRadiance: vec4<f32> = vec4<f32>(0.0f, 0.0f, 0.0f, 1.0f);
     var candidateRayDirection: vec4<f32> = vec4<f32>(rayDirection, 1.0f);
     var fRadianceDP: f32 = max(dot(normal, rayDirection), 0.0f);
