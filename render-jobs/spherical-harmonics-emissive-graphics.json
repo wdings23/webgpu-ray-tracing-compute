@@ -28,7 +28,7 @@
         {
             "Name" : "Radiance Output",
             "Type": "TextureInput",
-            "ParentJobName": "Emissive Temporal Restir Graphics"
+            "ParentJobName": "Emissive Spatial Restir Graphics"
         },
         {
             "Name" : "World Position Output",
