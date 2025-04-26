@@ -113,13 +113,34 @@
             "name": "meshTriangleIndexRanges",
             "type": "buffer",
             "shader_stage": "fragment",
-            "usage": "read_write_storage",
+            "usage": "read_only_storage",
             "external": "true"
         },
         {
             "name": "meshMaterials",
             "type": "buffer",
             "shader_stage": "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        },
+        { 
+            "name" : "bvhNodes",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        },
+        { 
+            "name" : "train-vertex-buffer",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
+        },
+        { 
+            "name" : "train-index-buffer",
+            "type" : "buffer",
+            "shader_stage" : "fragment",
             "usage": "read_only_storage",
             "external": "true"
         }

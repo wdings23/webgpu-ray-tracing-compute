@@ -589,6 +589,17 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             1.0f, 
             false);
 
+        if(result.mIntersectionResult.miHitTriangle != UINT32_MAX) 
+        {
+            var iHitMesh: u32 = getMeshForTriangleIndex(result.mIntersectionResult.miHitTriangle);
+            textureStore(
+                hitTriangleTexture,
+                screenCoord,
+                vec4<f32>(f32(result.mIntersectionResult.miHitTriangle), f32(iHitMesh), 0.0f, 0.0f)
+            );
+        }
+        
+
     }   // for sample = 0 to num permutation samples   
 
     // intersection check to see if the neighbor's ray direction is blocked

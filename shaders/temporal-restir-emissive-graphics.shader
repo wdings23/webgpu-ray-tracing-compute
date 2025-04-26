@@ -1,7 +1,7 @@
 const UINT32_MAX: u32 = 0xffffffffu;
 const FLT_MAX: f32 = 1.0e+10;
 const PI: f32 = 3.14159f;
-const RAY_LENGTH: f32 = 10.0f;
+const RAY_LENGTH: f32 = 50.0f;
 
 struct RandomResult 
 {
@@ -45,6 +45,57 @@ struct MeshTriangleRange
 {
     miStart: u32,
     miEnd: u32,
+};
+
+struct IntersectBVHResult
+{
+    mHitPosition: vec3<f32>,
+    mHitNormal: vec3<f32>,
+    miHitTriangle: u32,
+    mBarycentricCoordinate: vec3<f32>,
+};
+
+struct RayTriangleIntersectionResult
+{
+    mIntersectPosition: vec3<f32>,
+    mIntersectNormal: vec3<f32>,
+    mBarycentricCoordinate: vec3<f32>,
+};
+
+struct Ray
+{
+    mOrigin: vec4<f32>,
+    mDirection: vec4<f32>,
+    mfT: vec4<f32>,
+};
+
+struct Tri
+{
+    miV0 : u32,
+    miV1 : u32,
+    miV2 : u32,
+    mPadding : u32,
+
+    mCentroid : vec4<f32>
+};
+
+struct VertexFormat
+{
+    mPosition : vec4<f32>,
+    mTexCoord : vec4<f32>,
+    mNormal : vec4<f32>, 
+};
+
+struct BVHNode2
+{
+    mMinBound: vec4<f32>,
+    mMaxBound: vec4<f32>,
+    mCentroid: vec4<f32>,
+    
+    miChildren0: u32,
+    miChildren1: u32,
+    miPrimitiveID: u32,
+    miMeshID: u32,
 };
 
 struct DefaultUniformData
@@ -123,9 +174,18 @@ var<storage, read> aMeshTriangleIndexRanges: array<MeshTriangleRange>;
 var<storage, read> aMeshMaterials: array<Material>;
 
 @group(1) @binding(3)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var<storage, read> aSceneBVHNodes: array<BVHNode2>;
 
 @group(1) @binding(4)
+var<storage, read> aSceneVertexPositions: array<VertexFormat>;
+
+@group(1) @binding(5)
+var<storage, read> aiSceneTriangleIndices: array<u32>;
+
+@group(1) @binding(6)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(7)
 var textureSampler: sampler;
 
 struct VertexOutput 
@@ -219,7 +279,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     let rayDirection: vec3<f32> = normalize(hitPosition.xyz - worldPosition.xyz);
     
-    temporalRestir(
+    result = temporalRestir(
         result,
         worldPosition.xyz,
         normal.xyz,
@@ -258,6 +318,8 @@ fn temporalRestir(
     iSampleIndex: u32,
     fM: f32) -> TemporalRestirResult
 {
+    var ret: TemporalRestirResult = prevResult;
+
     let textureSize: vec2u = textureDimensions(worldPositionTexture);
     let inputImageCoord: vec2u = vec2u(
         u32(inputTexCoord.x * f32(textureSize.x)),
@@ -265,8 +327,6 @@ fn temporalRestir(
     );
 
     let fOneOverPDF: f32 = 1.0f / PI;
-
-    var ret: TemporalRestirResult = prevResult;
     ret.mRandomResult = randomResult;
     
     ret.mRandomResult = nextRand(ret.mRandomResult.miSeed);
@@ -290,24 +350,6 @@ fn temporalRestir(
         iDisoccluded = 0;
     }
 
-    var prevTemporalReservoir: vec4<f32> = textureLoad(
-        prevTemporalReservoirTexture,
-        prevImageCoord,
-        0
-    );
-
-    var prevHitPosition: vec4<f32> = textureLoad(
-        prevHitPositionTexture,
-        prevImageCoord,
-        0
-    );
-
-    var prevHitNormal: vec4<f32> = textureLoad(
-        prevHitNormalTexture,
-        prevImageCoord,
-        0
-    );
-
     var candidateHitPosition: vec4<f32> = textureLoad(
         hitPositionTexture,
         inputImageCoord,
@@ -323,14 +365,10 @@ fn temporalRestir(
     var candidateRayDirection: vec4<f32> = vec4<f32>(rayDirection, 1.0f);
     var fRadianceDP: f32 = max(dot(normal, rayDirection), 0.0f);
     var fDistanceAttenuation: f32 = 1.0f;
-    if(dot(candidateHitPosition.xyz, candidateHitPosition.xyz) < 100.0f)
+    //if(dot(candidateHitPosition.xyz, candidateHitPosition.xyz) < 100.0f)
     {
-        let hitInfo: vec4<f32> = textureLoad(
-            hitTriangleTexture,
-            inputImageCoord,
-            0
-        );
-        let iHitMesh: u32 = u32(hitInfo.y);
+        let iHitTriangle: u32 = u32(candidateHitPosition.w);
+        let iHitMesh: u32 = getMeshForTriangleIndex(iHitTriangle);
         let material: Material = aMeshMaterials[iHitMesh];
         candidateRadiance = vec4<f32>(material.mEmissive.xyz, 1.0f);
 
@@ -397,7 +435,7 @@ fn updateReservoir(
     
     var fWeightPct: f32 = fPHat / ret.mReservoir.x;
 
-    if(fRand < fWeightPct || reservoir.z <= 0.0f)
+    if(fRand < fWeightPct || reservoir.z <= 0.0f || reservoir.x <= 0.0f)
     {
         ret.mReservoir.y = fPHat;
         ret.mbExchanged = true;
@@ -572,4 +610,292 @@ fn computeLuminance(
     radiance: vec3<f32>) -> f32
 {
     return dot(radiance, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
+}
+
+/*
+**
+*/
+fn getMeshForTriangleIndex(iTriangleIndex: u32) -> u32
+{
+    var iRet: u32 = 0u;
+    for(var i: u32 = 0u; i < defaultUniformBuffer.miNumMeshes; i++)
+    {
+        if(iTriangleIndex >= aMeshTriangleIndexRanges[i].miStart && 
+           iTriangleIndex <= aMeshTriangleIndexRanges[i].miEnd)
+        {
+            iRet = i;
+            break;
+        }
+    }
+
+    return iRet;
+}
+
+struct Triangle
+{
+    miV0 : u32,
+    miV1 : u32,
+    miV2 : u32,
+    mPadding : u32,
+
+    mCentroid : vec4<f32>
+};
+
+struct LeafNode
+{
+    miTriangleIndex: u32,
+};
+
+struct IntermediateNode
+{
+    mCentroid: vec4<f32>,
+    mMinBounds: vec4<f32>,
+    mMaxBounds: vec4<f32>,
+
+    miLeftNodeIndex: u32,
+    miRightNodeIndex: u32,
+    miLeafNode: u32,
+    miMortonCode: u32,
+};
+
+struct BVHProcessInfo
+{
+    miStep: u32,
+    miStartNodeIndex: u32,
+    miEndNodeIndex: u32,
+    miNumMeshes: u32, 
+};
+
+/*
+**
+*/
+fn intersectTri4(
+    ray: Ray,
+    iTriangleIndex: u32) -> RayTriangleIntersectionResult
+{
+    let iIndex0: u32 = aiSceneTriangleIndices[iTriangleIndex * 3];
+    let iIndex1: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 1];
+    let iIndex2: u32 = aiSceneTriangleIndices[iTriangleIndex * 3 + 2];
+
+    var pos0: vec4<f32> = aSceneVertexPositions[iIndex0].mPosition;
+    var pos1: vec4<f32> = aSceneVertexPositions[iIndex1].mPosition;
+    var pos2: vec4<f32> = aSceneVertexPositions[iIndex2].mPosition;
+
+    var iIntersected: u32 = 0;
+    var fT: f32 = FLT_MAX;
+    let intersectionInfo: RayTriangleIntersectionResult = rayTriangleIntersection(
+        ray.mOrigin.xyz,
+        ray.mOrigin.xyz + ray.mDirection.xyz * RAY_LENGTH,
+        pos0.xyz,
+        pos1.xyz,
+        pos2.xyz);
+    
+    return intersectionInfo;
+}
+
+/*
+**
+*/
+fn intersectBVH4(
+    ray: Ray,
+    iRootNodeIndex: u32) -> IntersectBVHResult
+{
+    var ret: IntersectBVHResult;
+
+    var iStackTop: i32 = 0;
+    var aiStack: array<u32, 32>;
+    aiStack[iStackTop] = iRootNodeIndex;
+
+    ret.mHitPosition = vec3<f32>(FLT_MAX, FLT_MAX, FLT_MAX);
+    ret.miHitTriangle = UINT32_MAX;
+    var fClosestDistance: f32 = FLT_MAX;
+
+    for(var iStep: u32 = 0u; iStep < 1000u; iStep++)
+    {
+        if(iStackTop < 0)
+        {
+            break;
+        }
+
+        let iNodeIndex: u32 = aiStack[iStackTop];
+        iStackTop -= 1;
+
+        //let node: BVHNode2 = aSceneBVHNodes[iNodeIndex];
+        if(aSceneBVHNodes[iNodeIndex].miPrimitiveID != UINT32_MAX)
+        {
+            let intersectionInfo: RayTriangleIntersectionResult = intersectTri4(
+                ray,
+                aSceneBVHNodes[iNodeIndex].miPrimitiveID);
+
+            if(abs(intersectionInfo.mIntersectPosition.x) < RAY_LENGTH)
+            {
+                let fDistanceToEye: f32 = length(intersectionInfo.mIntersectPosition.xyz - ray.mOrigin.xyz);
+                //if(fDistanceToEye < fClosestDistance)
+                {
+                    
+                    //fClosestDistance = fDistanceToEye;
+                    ret.mHitPosition = intersectionInfo.mIntersectPosition.xyz;
+                    ret.mHitNormal = intersectionInfo.mIntersectNormal.xyz;
+                    ret.miHitTriangle = aSceneBVHNodes[iNodeIndex].miPrimitiveID;
+                    ret.mBarycentricCoordinate = intersectionInfo.mBarycentricCoordinate;
+
+                    break;
+                }
+            }
+        }
+        else
+        {
+            let bIntersect: bool = rayBoxIntersect(
+                ray.mOrigin.xyz,
+                ray.mDirection.xyz,
+                aSceneBVHNodes[iNodeIndex].mMinBound.xyz,
+                aSceneBVHNodes[iNodeIndex].mMaxBound.xyz);
+
+            // node left and right child to stack
+            if(bIntersect)
+            {
+                iStackTop += 1;
+                aiStack[iStackTop] = aSceneBVHNodes[iNodeIndex].miChildren0;
+                iStackTop += 1;
+                aiStack[iStackTop] = aSceneBVHNodes[iNodeIndex].miChildren1;
+            }
+        }
+    }
+
+    return ret;
+}
+
+/*
+**
+*/
+fn barycentric(
+    p: vec3<f32>, 
+    a: vec3<f32>, 
+    b: vec3<f32>, 
+    c: vec3<f32>) -> vec3<f32>
+{
+    let v0: vec3<f32> = b - a;
+    let v1: vec3<f32> = c - a;
+    let v2: vec3<f32> = p - a;
+    let fD00: f32 = dot(v0, v0);
+    let fD01: f32 = dot(v0, v1);
+    let fD11: f32 = dot(v1, v1);
+    let fD20: f32 = dot(v2, v0);
+    let fD21: f32 = dot(v2, v1);
+    let fOneOverDenom: f32 = 1.0f / (fD00 * fD11 - fD01 * fD01);
+    let fV: f32 = (fD11 * fD20 - fD01 * fD21) * fOneOverDenom;
+    let fW: f32 = (fD00 * fD21 - fD01 * fD20) * fOneOverDenom;
+    let fU: f32 = 1.0f - fV - fW;
+
+    return vec3<f32>(fU, fV, fW);
+}
+
+/*
+**
+*/
+fn rayPlaneIntersection(
+    pt0: vec3<f32>,
+    pt1: vec3<f32>,
+    planeNormal: vec3<f32>,
+    fPlaneDistance: f32) -> f32
+{
+    var fRet: f32 = FLT_MAX;
+    let v: vec3<f32> = pt1 - pt0;
+
+    let fDenom: f32 = dot(v, planeNormal);
+    fRet = -(dot(pt0, planeNormal) + fPlaneDistance) / (fDenom + 1.0e-5f);
+
+    return fRet;
+}
+
+/*
+**
+*/
+fn rayBoxIntersect(
+    rayPosition: vec3<f32>,
+    rayDir: vec3<f32>,
+    bboxMin: vec3<f32>,
+    bboxMax: vec3<f32>) -> bool
+{
+    //let oneOverRay: vec3<f32> = 1.0f / rayDir.xyz;
+    let tMin: vec3<f32> = (bboxMin - rayPosition) / rayDir.xyz;
+    let tMax: vec3<f32> = (bboxMax - rayPosition) / rayDir.xyz;
+
+    var fTMin: f32 = min(tMin.x, tMax.x);
+    var fTMax: f32 = max(tMin.x, tMax.x);
+
+    fTMin = max(fTMin, min(tMin.y, tMax.y));
+    fTMax = min(fTMax, max(tMin.y, tMax.y));
+
+    fTMin = max(fTMin, min(tMin.z, tMax.z));
+    fTMax = min(fTMax, max(tMin.z, tMax.z));
+
+    return fTMax >= fTMin;
+}
+
+/*
+**
+*/
+fn rayTriangleIntersection(
+    rayPt0: vec3<f32>, 
+    rayPt1: vec3<f32>, 
+    triPt0: vec3<f32>, 
+    triPt1: vec3<f32>, 
+    triPt2: vec3<f32>) -> RayTriangleIntersectionResult
+{
+    var ret: RayTriangleIntersectionResult;
+
+    let v0: vec3<f32> = normalize(triPt1 - triPt0);
+    let v1: vec3<f32> = normalize(triPt2 - triPt0);
+    let cp: vec3<f32> = cross(v0, v1);
+
+    let triNormal: vec3<f32> = normalize(cp);
+    let fPlaneDistance: f32 = -dot(triPt0, triNormal);
+
+    let fT: f32 = rayPlaneIntersection(
+        rayPt0, 
+        rayPt1, 
+        triNormal, 
+        fPlaneDistance);
+    if(fT <= 0.0f)
+    {
+        ret.mIntersectPosition = vec3<f32>(FLT_MAX, FLT_MAX, FLT_MAX);
+        return ret;
+    }
+
+    let collisionPt: vec3<f32> = rayPt0 + (rayPt1 - rayPt0) * fT;
+    
+    let edge0: vec3<f32> = normalize(triPt1 - triPt0);
+    let edge1: vec3<f32> = normalize(triPt2 - triPt0);
+    let edge2: vec3<f32> = normalize(triPt0 - triPt2);
+
+    // edge 0
+    var C: vec3<f32> = cross(edge0, normalize(collisionPt - triPt0));
+    if(dot(triNormal, C) < 0.0f)
+    {
+        ret.mIntersectPosition = vec3<f32>(FLT_MAX, FLT_MAX, FLT_MAX);
+        return ret;
+    }
+
+    // edge 1
+    C = cross(edge1, normalize(collisionPt - triPt1));
+    if(dot(triNormal, C) < 0.0f)
+    {
+        ret.mIntersectPosition = vec3<f32>(FLT_MAX, FLT_MAX, FLT_MAX);
+        return ret;
+    }
+
+    // edge 2
+    C = cross(edge2, normalize(collisionPt - triPt2));
+    if(dot(triNormal, C) < 0.0f)
+    {
+        ret.mIntersectPosition = vec3<f32>(FLT_MAX, FLT_MAX, FLT_MAX);
+        return ret;
+    }
+    
+    ret.mBarycentricCoordinate = barycentric(collisionPt, triPt0, triPt1, triPt2);
+    ret.mIntersectPosition = (triPt0 * ret.mBarycentricCoordinate.x + triPt1 * ret.mBarycentricCoordinate.y + triPt2 * ret.mBarycentricCoordinate.z);
+    ret.mIntersectNormal = triNormal.xyz;
+
+    return ret;
 }
