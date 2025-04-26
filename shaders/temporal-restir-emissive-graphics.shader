@@ -333,13 +333,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     }
 
     let fPerSampleSize: f32 = 0.1f;
+    let fReservoirSize: f32 = 10.0f;
     result = temporalRestir(
         result,
         worldPosition.xyz,
         normal.xyz,
         in.uv.xy,
         rayDirection,
-        8.0f,
+        fReservoirSize,
         1.0f,
         randomResult,
         0u,
@@ -355,9 +356,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         worldPosition.xyz,
         normal.xyz,
         i32(iMesh),
-        8.0f,
+        fReservoirSize,
         randomResult,
-        fPerSampleSize
+        fPerSampleSize * 0.1f
     );
 
     result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
@@ -1189,12 +1190,12 @@ fn permutationSampling(
             fJacobian,
             randomResult,
             u32(iSample),
-            fM * 0.25f, 
+            fM, 
             false);
 
     }   // for sample = 0 to num permutation samples  
 
-    ret.mReservoir.z = result.mReservoir.z;
+    //ret.mReservoir.z = result.mReservoir.z;
 
     var ray: Ray;
     ray.mDirection = vec4<f32>(ret.mRayDirection.xyz, 1.0f);
