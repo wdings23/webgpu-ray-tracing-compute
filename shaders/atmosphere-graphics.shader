@@ -275,8 +275,8 @@ struct DefaultUniformData
 
 struct UniformData
 {
-    lightDirection: vec4<f32>, 
-    lightRadiance: vec4<f32>, 
+    mLastLightDirection: vec4<f32>,
+	mLastLightRadiance: vec4<f32>,
 };
 
 @group(0) @binding(0)
@@ -286,10 +286,10 @@ var prevOutputTexture: texture_2d<f32>;
 var prevSunlightTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
-var<uniform> uniformData: UniformData;
+var<storage, read_write> uniformData: UniformData;
 
 @group(1) @binding(1)
-var<uniform> defaultUniformData: DefaultUniformData;
+var<uniform> defaultUniformBuffer: DefaultUniformData;
 
 @group(1) @binding(2)
 var textureSampler: sampler;
@@ -312,18 +312,25 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 {
 	var output: FragmentOutput;
 
-	if(defaultUniformData.miFrame >= 2)
+	var textureSize: vec2<u32> = textureDimensions(prevOutputTexture);
+	var screenCoord: vec2<u32> = vec2<u32>(
+		u32(in.uv.x * f32(textureSize.x)),
+		u32(in.uv.y * f32(textureSize.y))
+	);
+	var diffDirection: vec3<f32> = uniformData.mLastLightDirection.xyz - defaultUniformBuffer.mLightDirection.xyz;
+	var diffRadiance: vec3<f32> = uniformData.mLastLightRadiance.xyz - defaultUniformBuffer.mLightRadiance.xyz;
+	if(dot(diffDirection, diffDirection) <= 0.01f && dot(diffRadiance, diffRadiance) <= 0.01f)
 	{
-		let prevOutput: vec4f = textureSample(
+		let prevOutput: vec4f = textureLoad(
 			prevOutputTexture,
-			textureSampler,
-			in.uv
+			screenCoord,
+			0
 		);
 
-		let prevSunLight: vec4f = textureSample(
+		let prevSunLight: vec4f = textureLoad(
 			prevSunlightTexture,
-			textureSampler,
-			in.uv
+			screenCoord,
+			0
 		);
 
 		output.colorOutput = prevOutput;
@@ -340,8 +347,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         vec3<f32>(0.0f, 0.0f, 0.0f), 
         direction, 
         PLANET_RADIUS, 
-        defaultUniformData.mLightDirection.xyz, 
-        defaultUniformData.mLightRadiance.xyz, 
+        defaultUniformBuffer.mLightDirection.xyz, 
+        defaultUniformBuffer.mLightRadiance.xyz, 
         transmittance);
 
     output.colorOutput.x = ret.radiance.x * ret.transmittance.x;
@@ -351,16 +358,19 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
 	ret = IntegrateScattering(
         vec3<f32>(0.0f, 0.0f, 0.0f), 
-        defaultUniformData.mLightDirection.xyz, 
+        defaultUniformBuffer.mLightDirection.xyz, 
         PLANET_RADIUS, 
-        defaultUniformData.mLightDirection.xyz, 
-        defaultUniformData.mLightRadiance.xyz, 
+        defaultUniformBuffer.mLightDirection.xyz, 
+        defaultUniformBuffer.mLightRadiance.xyz, 
         transmittance);
 
 	output.sunLightOutput.x = ret.radiance.x * ret.transmittance.x;
 	output.sunLightOutput.y = ret.radiance.y * ret.transmittance.y;
 	output.sunLightOutput.z = ret.radiance.z * ret.transmittance.z;
 	output.sunLightOutput.w = 1.0f;
+
+	uniformData.mLastLightDirection = defaultUniformBuffer.mLightDirection;
+	uniformData.mLastLightRadiance = defaultUniformBuffer.mLightRadiance;
 
     return output;
 }

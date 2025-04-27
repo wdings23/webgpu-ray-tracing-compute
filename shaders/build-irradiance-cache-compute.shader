@@ -509,7 +509,7 @@ fn encodeSphericalHarmonicCoefficients(
 
     irradianceCache[iCacheEntryIndex].mSampleCount.x += 1.0f;
 
-    let kfMaxCount: f32 = 1000.0f;
+    let kfMaxCount: f32 = 30.0f;
     if(irradianceCache[iCacheEntryIndex].mSampleCount.x > kfMaxCount)
     {
         let fPct: f32 = kfMaxCount / irradianceCache[iCacheEntryIndex].mSampleCount.x;

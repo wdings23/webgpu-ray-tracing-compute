@@ -35,7 +35,7 @@
             "type" : "buffer",
             "size" : 256,
             "shader_stage" : "fragment",
-            "usage": "uniform"
+            "usage": "read_write_storage"
         }
     ],
     "BlendStates": [

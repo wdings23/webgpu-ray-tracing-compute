@@ -825,8 +825,6 @@ void start()
         gRenderer.addQueueData(data);
 
         gLightDirection = normalize(float3(-0.25f, 1.0f, 0.0f));
-
-
     }
 
 #if defined(__EMSCRIPTEN__)
