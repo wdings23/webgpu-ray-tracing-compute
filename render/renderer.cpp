@@ -1183,7 +1183,7 @@ namespace Render
     {
 #if defined(__EMSCRIPTEN__)
         char* acTriangleBuffer = nullptr;
-        uint64_t iSize = Loader::loadFile(&acTriangleBuffer, desc.mMeshFilePath + "-triangles.bin");
+        uint64_t iSize = Loader::loadFile(&acTriangleBuffer, mCreateDesc.mMeshFilePath + "-triangles.bin");
         printf("acTriangleBuffer = 0x%X size: %lld\n", (uint32_t)acTriangleBuffer, iSize);
         uint32_t const* piData = (uint32_t const*)acTriangleBuffer;
 #else 
@@ -1262,7 +1262,7 @@ namespace Render
         {
 #if defined(__EMSCRIPTEN__)
             char* acMaterialID = nullptr;
-            bufferDesc.size = Loader::loadFile(&acMaterialID, desc.mMeshFilePath + ".mid");
+            bufferDesc.size = Loader::loadFile(&acMaterialID, mCreateDesc.mMeshFilePath + ".mid");
 #else 
 
             std::vector<char> acMaterialID;
@@ -1276,7 +1276,7 @@ namespace Render
             maBufferSizes["meshEmeshMaterialIDsxtents"] = (uint32_t)bufferDesc.size;
 
 #if defined(__EMSCRIPTEN__)
-            device.GetQueue().WriteBuffer(
+            mpDevice->GetQueue().WriteBuffer(
                 maBuffers["meshMaterialIDs"],
                 0,
                 acMaterialID,
@@ -1294,7 +1294,7 @@ namespace Render
         {
 #if defined(__EMSCRIPTEN__)
             char* acMaterials = nullptr;
-            bufferDesc.size = Loader::loadFile(&acMaterials, desc.mMeshFilePath + ".mat");
+            bufferDesc.size = Loader::loadFile(&acMaterials, mCreateDesc.mMeshFilePath + ".mat");
             printf("mesh material size: %d\n", (uint32_t)bufferDesc.size);
 #else
             std::vector<char> acMaterials;
@@ -1308,7 +1308,7 @@ namespace Render
             maBufferSizes["meshMaterials"] = (uint32_t)bufferDesc.size;
 
 #if defined(__EMSCRIPTEN__)
-            device.GetQueue().WriteBuffer(
+            mpDevice->GetQueue().WriteBuffer(
                 maBuffers["meshMaterials"],
                 0,
                 acMaterials,
@@ -1340,13 +1340,17 @@ namespace Render
 
 #if defined(__EMSCRIPTEN__)
         char* acFileContentBuffer = nullptr;
-        Loader::loadFile(
+        uint32_t iFileSize = Loader::loadFile(
             &acFileContentBuffer,
-            "render-jobs/" + desc.mRenderJobPipelineFilePath,
+            "render-jobs/external-data.json",
             true
         );
+        assert(acFileContentBuffer);
+
+        DEBUG_PRINTF("loaded \"%s\" file size = %d\n", mCreateDesc.mRenderJobPipelineFilePath.c_str(), iFileSize);
 
         doc.Parse(acFileContentBuffer);
+        DEBUG_PRINTF("%s : %d parsed\n", __FILE__, __LINE__);
         Loader::loadFileFree(acFileContentBuffer);
 #else 
         std::vector<char> acFileContentBuffer;
@@ -1409,6 +1413,7 @@ namespace Render
                 textureDesc.viewFormatCount = 1;
                 textureDesc.viewFormats = aViewFormats;
                 maTextures[name] = mpDevice->CreateTexture(&textureDesc);
+                maTextures[name].SetLabel(name.c_str());
 
 #if defined(__EMSCRIPTEN__)
                 wgpu::TextureDataLayout layout = {};
@@ -1504,6 +1509,7 @@ namespace Render
                 textureDesc.viewFormatCount = 1;
                 textureDesc.viewFormats = aViewFormats;
                 maTextures[name] = mpDevice->CreateTexture(&textureDesc);
+                maTextures[name].SetLabel(name.c_str());
             }
         }
     }
@@ -1740,7 +1746,7 @@ namespace Render
 
 #if defined(__EMSCRIPTEN__)
             char* acTextureNames = nullptr;
-            uint32_t iSize = Loader::loadFile(&acTextureNames, desc.mMeshFilePath + "-texture-names.tex");
+            uint32_t iSize = Loader::loadFile(&acTextureNames, mCreateDesc.mMeshFilePath + "-texture-names.tex");
             if(iSize > 0)
 #else 
             std::vector<char> acTextureNames;

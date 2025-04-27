@@ -1,6 +1,6 @@
-# webgpu-dawn-example
+# webgpu-ray-tracing-compute
 
-WebGPU implementation of simple mesh viewer with zooming, panning, rotation, and hide/reveal functionalty. Native WebGPU uses Chromium's Dawn that has support for MultiDrawIndirect, rendering meshes in one call. Fallback for emscripten build is loop through drawIndexedIndirect with the number of meshes.
+WebGPU implementation of ray tracing using compute shader. It uses ReSTIR technique for indirect diffuse and emissive lighting.
 
 # Get Dawn
 git submodule add https://dawn.googlesource.com/dawn
@@ -35,10 +35,6 @@ npx http-server -p 8000
 # local url
 http://localhost:8000/app.html
 
-# web version (youtube clip)
-[![video](https://img.youtube.com/vi/8E8v86ZudF4/0.jpg)](https://www.youtube.com/watch?v=8E8v86ZudF4)
-
-
-# native version (youtube clip)
-[![web version](https://img.youtube.com/vi/CzTR04N-yy4/0.jpg)](https://www.youtube.com/watch?v=CzTR04N-yy4)
+# link
+TBD
 

@@ -48,7 +48,7 @@ if(EMSCRIPTEN)
     -g -O3"
   )
   target_compile_definitions(webgpu-ray-tracing-compute PUBLIC EMBEDDED_FILES=1)
-  set_target_properties(webgpu-ray-tracing-compute PROPERTIES LINK_FLAGS "--embed-file ../shaders --embed-file ../render-jobs --embed-file ../assets")
+  set_target_properties(webgpu-ray-tracing-compute PROPERTIES LINK_FLAGS "--embed-file ../shaders --embed-file ../render-jobs --embed-file ../assets --embed-file ../assets/textures")
   set_target_properties(webgpu-ray-tracing-compute PROPERTIES SUFFIX ".html")
   target_link_options(webgpu-ray-tracing-compute PRIVATE 
     "-sUSE_WEBGPU=1" 
