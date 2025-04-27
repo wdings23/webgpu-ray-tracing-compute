@@ -64,7 +64,7 @@ if(EMSCRIPTEN)
     #"-sUSE_PTHREADS=1"
     "-sASSERTIONS"
     "-sSTACK_SIZE=1048576"
-    "-sEXPORTED_FUNCTIONS=_main,_toggleOutlineRender,_setSwapChainRender,_setAmbientOcclusionSampleRadius,_setAmbientOcclusionThickness,_setExplodePct,_hideSelection,_showLastHidden,_setCrossSectionPlane,_toggleProjectionType"
+    "-sEXPORTED_FUNCTIONS=_main,_setEmissiveSurfaceValue,_setSunLightDirectionX,_setSunLightDirectionY,_setSunLightDirectionZ"
     "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap"
   )
 else()

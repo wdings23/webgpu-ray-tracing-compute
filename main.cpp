@@ -131,6 +131,10 @@ extern "C" void setSwapChainRender(char const* szRenderJobName, char const* szOu
 extern "C" void setExplodePct(float fPct);
 extern "C" void hideSelection();
 extern "C" void showLastHidden();
+extern "C" void setEmissiveSurfaceValue(float fValue);
+extern "C" void setSunLightDirectionX(float fSunLightDirectionX);
+extern "C" void setSunLightDirectionY(float fSunLightDirectionY);
+extern "C" void setSunLightDirectionZ(float fSunLightDirectionZ);
 
 /*
 **
@@ -598,16 +602,7 @@ void start()
             case GLFW_KEY_L:
             {
                 gEmissiveUniformData.mfEmissiveSurfaceValue += 0.1f;
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Emissive Temporal Restir Graphics";
-                data.mShaderResourceName = "uniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(EmissiveTemporalRestirUniformData);
-                data.mpData = &gEmissiveUniformData;
-                gRenderer.addQueueData(data);
-
-                data.mJobName = "Emissive Spatial Restir Graphics";
-                gRenderer.addQueueData(data);
+                setEmissiveSurfaceValue(gEmissiveUniformData.mfEmissiveSurfaceValue);
 
                 break;
             }
@@ -615,48 +610,54 @@ void start()
             case GLFW_KEY_K:
             {
                 gEmissiveUniformData.mfEmissiveSurfaceValue = std::max(gEmissiveUniformData.mfEmissiveSurfaceValue - 0.1f, 0.0f);
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Emissive Temporal Restir Graphics";
-                data.mShaderResourceName = "uniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(EmissiveTemporalRestirUniformData);
-                data.mpData = &gEmissiveUniformData;
-                gRenderer.addQueueData(data);
-
-                data.mJobName = "Emissive Spatial Restir Graphics";
-                gRenderer.addQueueData(data);
-
+                setEmissiveSurfaceValue(gEmissiveUniformData.mfEmissiveSurfaceValue);
+                
                 break;
             }
 
             case GLFW_KEY_COMMA:
             {
-                gLightDirection.z = std::max(gLightDirection.z - 0.1f, -1.0f);
-                gLightDirection = normalize(gLightDirection);
+                setSunLightDirectionZ(gLightDirection.z - 0.1f);
+                
                 DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
                 break;
             }
 
             case GLFW_KEY_PERIOD:
             {
-                gLightDirection.z = std::min(gLightDirection.z + 0.1f, 1.0f);
-                gLightDirection = normalize(gLightDirection);
+                setSunLightDirectionZ(gLightDirection.z + 0.1f);
+
                 DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
                 break;
             }
 
             case GLFW_KEY_N:
             {
-                gLightDirection.x = std::max(gLightDirection.x - 0.1f, -1.0f);
-                gLightDirection = normalize(gLightDirection);
+                setSunLightDirectionX(gLightDirection.x - 0.1f);
+
                 DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
                 break;
             }
 
             case GLFW_KEY_M:
             {
-                gLightDirection.x = std::min(gLightDirection.x + 0.1f, 1.0f);
-                gLightDirection = normalize(gLightDirection);
+                setSunLightDirectionX(gLightDirection.x + 0.1f);
+
+                DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
+                break;
+            }
+            case GLFW_KEY_V:
+            {
+                setSunLightDirectionY(gLightDirection.y - 0.1f);
+
+                DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
+                break;
+            }
+
+            case GLFW_KEY_B:
+            {
+                setSunLightDirectionY(gLightDirection.y + 0.1f);
+
                 DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
                 break;
             }
@@ -1754,6 +1755,54 @@ extern "C"
         {
             giCameraMode = PROJECTION_PERSPECTIVE;
         }
+    }
+
+    /*
+    **
+    */
+    void setEmissiveSurfaceValue(float fValue)
+    {
+        gEmissiveUniformData.mfEmissiveSurfaceValue = std::max( fValue, 0.0f);
+
+        Render::CRenderer::QueueData data;
+        data.mJobName = "Emissive Temporal Restir Graphics";
+        data.mShaderResourceName = "uniformData";
+        data.miStart = 0;
+        data.miSize = (uint32_t)sizeof(EmissiveTemporalRestirUniformData);
+        data.mpData = &gEmissiveUniformData;
+        gRenderer.addQueueData(data);
+
+        data.mJobName = "Emissive Spatial Restir Graphics";
+        gRenderer.addQueueData(data);
+    }
+
+    /*
+    **
+    */
+    void setSunLightDirectionX(float fSunLightDirectionX)
+    {
+        gLightDirection.x = fSunLightDirectionX;
+        gLightDirection = normalize(float3(gLightDirection.x, gLightDirection.y, gLightDirection.z));
+    }
+
+
+    /*
+    **
+    */
+    void setSunLightDirectionY(float fSunLightDirectionY)
+    {
+        gLightDirection.y = fSunLightDirectionY;
+        gLightDirection = normalize(float3(gLightDirection.x, gLightDirection.y, gLightDirection.z));
+    }
+
+
+    /*
+    **
+    */
+    void setSunLightDirectionZ(float fSunLightDirectionZ)
+    {
+        gLightDirection.z = fSunLightDirectionZ;
+        gLightDirection = normalize(float3(gLightDirection.x, gLightDirection.y, gLightDirection.z));
     }
 
 }   // "C"
