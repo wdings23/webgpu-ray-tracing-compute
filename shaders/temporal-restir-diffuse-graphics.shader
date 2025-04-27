@@ -929,7 +929,7 @@ fn temporalRestir(
         }
         else 
         {
-            let fReflectivity: f32 = 0.2f;
+            let fReflectivity: f32 = 0.5f;
 
             // not on screen, check irradiance cache
             let iHitIrradianceCacheIndex: u32 = fetchIrradianceCacheIndex(hitPosition);

@@ -136,6 +136,7 @@ namespace Render
     */
     void CRenderer::draw(DrawUpdateDescriptor& desc)
     {
+#if 0
         static float3 sLightDirection = normalize(float3(-0.25f, 1.0f, 0.0f));
 
         DefaultUniformData defaultUniformData;
@@ -163,6 +164,7 @@ namespace Render
             &defaultUniformData,
             sizeof(defaultUniformData)
         );
+#endif // #if 0
 
         // clear number of draw calls
         char acClearData[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};

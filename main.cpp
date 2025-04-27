@@ -79,6 +79,7 @@ std::vector<float2> gaBlueNoise;
 float3 gMeshMidPt;
 float gfMeshRadius;
 uint32_t giCameraMode = PROJECTION_PERSPECTIVE;
+float3 gLightDirection;
 
 struct AOUniformData
 {
@@ -358,6 +359,56 @@ void render()
     drawDesc.mpPrevViewProjectionMatrix = &gPrevViewProjectionMatrix;
     drawDesc.mpCameraPosition = &gCamera.getPosition();
     drawDesc.mpCameraLookAt = &gCamera.getLookAt();
+
+
+    // update default uniform buffer
+    {
+        struct DefaultUniformData
+        {
+            int32_t miScreenWidth = 0;
+            int32_t miScreenHeight = 0;
+            int32_t miFrame = 0;
+            uint32_t miNumMeshes = 0;
+
+            float mfRand0 = 0.0f;
+            float mfRand1 = 0.0f;
+            float mfRand2 = 0.0f;
+            float mfRand3 = 0.0f;
+
+            float4x4 mViewProjectionMatrix;
+            float4x4 mPrevViewProjectionMatrix;
+            float4x4 mViewMatrix;
+            float4x4 mProjectionMatrix;
+
+            float4x4 mJitteredViewProjectionMatrix;
+            float4x4 mPrevJitteredViewProjectionMatrix;
+
+            float4 mCameraPosition;
+            float4 mCameraLookDir;
+
+            float4 mLightRadiance;
+            float4 mLightDirection;
+        };
+
+        DefaultUniformData defaultUniformData;
+        defaultUniformData.mViewMatrix = *drawDesc.mpViewMatrix;
+        defaultUniformData.mProjectionMatrix = *drawDesc.mpProjectionMatrix;
+        defaultUniformData.mViewProjectionMatrix = *drawDesc.mpViewProjectionMatrix;
+        defaultUniformData.mPrevViewProjectionMatrix = *drawDesc.mpPrevViewProjectionMatrix;
+        defaultUniformData.mJitteredViewProjectionMatrix = *drawDesc.mpViewProjectionMatrix;
+        defaultUniformData.mPrevJitteredViewProjectionMatrix = *drawDesc.mpPrevViewProjectionMatrix;
+        defaultUniformData.miScreenWidth = kWidth;
+        defaultUniformData.miScreenHeight = kHeight;
+        defaultUniformData.miFrame = gRenderer.getFrameIndex();
+        defaultUniformData.mCameraPosition = float4(*drawDesc.mpCameraPosition, 1.0f);
+        defaultUniformData.mCameraLookDir = float4(*drawDesc.mpCameraLookAt, 1.0f);
+        defaultUniformData.miNumMeshes = gRenderer.getNumMeshes();
+        defaultUniformData.mLightRadiance = float4(50.0f, 50.0f, 50.0f, 1.0f);
+        defaultUniformData.mLightDirection = float4(normalize(gLightDirection), 1.0f);
+
+        gRenderer.setBufferData("default-uniform-buffer", &defaultUniformData, 0, sizeof(DefaultUniformData));
+    }
+
     gRenderer.draw(drawDesc);
 
     gPrevViewProjectionMatrix = gCamera.getViewProjectionMatrix();
@@ -578,255 +629,38 @@ void start()
                 break;
             }
 
-#if 0
-            case GLFW_KEY_E:
+            case GLFW_KEY_COMMA:
             {
-                // explode mesh 
-                //gfExplodeMultiplier += 1.0f;
-                //gRenderer.setExplosionMultiplier(gfExplodeMultiplier);
-
-                gDeferredIndirectUniformData.mfExplosionMultiplier += 1.0f;
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Deferred Indirect Graphics";
-                data.mShaderResourceName = "indirectUniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(DeferredIndirectUniformData);
-                data.mpData = &gDeferredIndirectUniformData;
-                gRenderer.addQueueData(data);
-
-                data.mJobName = "Deferred Indirect Front Face Graphics";
-                gRenderer.addQueueData(data);
-
+                gLightDirection.z = std::max(gLightDirection.z - 0.1f, -1.0f);
+                gLightDirection = normalize(gLightDirection);
+                DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
                 break;
             }
 
-            case GLFW_KEY_R:
+            case GLFW_KEY_PERIOD:
             {
-                // move meshes back from explosion
-                //gfExplodeMultiplier -= 1.0f;
-                //gfExplodeMultiplier = std::max(gfExplodeMultiplier, 0.0f);
-                //gRenderer.setExplosionMultiplier(gfExplodeMultiplier);
-
-                gDeferredIndirectUniformData.mfExplosionMultiplier = std::max(gDeferredIndirectUniformData.mfExplosionMultiplier - 1.0f, 0.0f);
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Deferred Indirect Graphics";
-                data.mShaderResourceName = "indirectUniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(DeferredIndirectUniformData);
-                data.mpData = &gDeferredIndirectUniformData;
-                gRenderer.addQueueData(data);
-
-                data.mJobName = "Deferred Indirect Front Face Graphics";
-                gRenderer.addQueueData(data);
-
-                break;
-            }
-
-            case GLFW_KEY_H:
-            {
-                // hide mesh
-                uint32_t iFlag = 0;
-                Render::CRenderer::SelectMeshInfo const& selectionInfo = gRenderer.getSelectionInfo();
-                DEBUG_PRINTF("selected mesh %d\n", selectionInfo.miMeshID);
-                if(selectionInfo.miMeshID >= 0)
-                {
-                    aiVisibilityFlags[selectionInfo.miMeshID] = 0;
-                    gRenderer.setBufferData(
-                        "visibilityFlags",
-                        aiVisibilityFlags.data(),
-                        0,
-                        uint32_t(aiVisibilityFlags.size() * sizeof(uint32_t))
-                    );
-                    aiHiddenMeshes.push_back(selectionInfo.miMeshID);
-                }
-                break;
-            }
-
-            case GLFW_KEY_J:
-            {
-                // show last hidden mesh
-                uint32_t iFlag = 1;
-                Render::CRenderer::SelectMeshInfo const& selectionInfo = gRenderer.getSelectionInfo();
-                if(aiHiddenMeshes.size() > 0)
-                {
-                    uint32_t iMesh = aiHiddenMeshes.back();
-                    aiVisibilityFlags[iMesh] = 1;
-                    gRenderer.setBufferData(
-                        "visibilityFlags",
-                        aiVisibilityFlags.data(),
-                        0,
-                        uint32_t(aiVisibilityFlags.size() * sizeof(uint32_t))
-                    );
-                    aiHiddenMeshes.pop_back();
-                    
-                }
-                break;
-            }
-
-            case GLFW_KEY_Z:
-            {
-                zoomToSelection();
+                gLightDirection.z = std::min(gLightDirection.z + 0.1f, 1.0f);
+                gLightDirection = normalize(gLightDirection);
+                DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
                 break;
             }
 
             case GLFW_KEY_N:
             {
-                gAOUniformData.mfSampleRadius = std::max(gAOUniformData.mfSampleRadius - 0.1f, 0.0f);
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Ambient Occlusion Graphics";
-                data.mShaderResourceName = "uniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(AOUniformData);
-                data.mpData = &gAOUniformData;
-
-                gRenderer.addQueueData(data);
+                gLightDirection.x = std::max(gLightDirection.x - 0.1f, -1.0f);
+                gLightDirection = normalize(gLightDirection);
+                DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
                 break;
             }
 
             case GLFW_KEY_M:
             {
-                gAOUniformData.mfSampleRadius = std::max(gAOUniformData.mfSampleRadius + 0.1f, 0.0f);
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Ambient Occlusion Graphics";
-                data.mShaderResourceName = "uniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(AOUniformData);
-                data.mpData = &gAOUniformData;
-
-                gRenderer.addQueueData(data);
+                gLightDirection.x = std::min(gLightDirection.x + 0.1f, 1.0f);
+                gLightDirection = normalize(gLightDirection);
+                DEBUG_PRINTF("light direction (%.4f, %.4f, %.4f)\n", gLightDirection.x, gLightDirection.y, gLightDirection.z);
                 break;
             }
 
-            case GLFW_KEY_SEMICOLON:
-            {
-                gAOUniformData.mfThickness = std::max(gAOUniformData.mfThickness - 0.0001f, 0.0f);
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Ambient Occlusion Graphics";
-                data.mShaderResourceName = "uniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(AOUniformData);
-                data.mpData = &gAOUniformData;
-
-                gRenderer.addQueueData(data);
-                break;
-            }
-
-            case GLFW_KEY_APOSTROPHE:
-            {
-                gAOUniformData.mfThickness = std::max(gAOUniformData.mfThickness + 0.0001f, 0.0f);
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Ambient Occlusion Graphics";
-                data.mShaderResourceName = "uniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(AOUniformData);
-                data.mpData = &gAOUniformData;
-
-                gRenderer.addQueueData(data);
-                break;
-            }
-
-            case GLFW_KEY_L:
-            {
-#if 0
-                if(gOutlineUniformData.mfDepthThreshold < 1000.0f)
-                {
-                    gOutlineUniformData.mfDepthThreshold = 10000.0f;
-                    gOutlineUniformData.mfNormalThreshold = 10000.0f;
-                }
-                else
-                {
-                    gOutlineUniformData.mfDepthThreshold = 0.2f;
-                    gOutlineUniformData.mfNormalThreshold = 0.2f;
-                }
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Outline Graphics";
-                data.mShaderResourceName = "uniformBuffer";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(OutlineUniformData);
-                data.mpData = &gOutlineUniformData;
-
-                gRenderer.addQueueData(data);
-#endif // 0
-                toggleOutlineRender();
-
-                break;
-            }
-
-            case GLFW_KEY_O:
-            {
-                if(gDeferredIndirectUniformData.mfCrossSectionPlaneD > 1000.0f)
-                {
-                    gDeferredIndirectUniformData.mfCrossSectionPlaneD = gfMeshRadius * 1.25f;
-                }
-
-                gDeferredIndirectUniformData.mfCrossSectionPlaneD -= ((gfMeshRadius * 2.0f) / 100.0f);
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Deferred Indirect Graphics";
-                data.mShaderResourceName = "indirectUniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(DeferredIndirectUniformData);
-                data.mpData = &gDeferredIndirectUniformData;
-                gRenderer.addQueueData(data);
-
-                data.mJobName = "Deferred Indirect Front Face Graphics";
-                gRenderer.addQueueData(data);
-
-                break;
-            }
-
-            case GLFW_KEY_P:
-            {
-                if(gDeferredIndirectUniformData.mfCrossSectionPlaneD > 1000.0f)
-                {
-                    gDeferredIndirectUniformData.mfCrossSectionPlaneD = gfMeshRadius * 1.25f;
-                }
-
-                gDeferredIndirectUniformData.mfCrossSectionPlaneD += ((gfMeshRadius * 2.0f) / 100.0f);
-
-                Render::CRenderer::QueueData data;
-                data.mJobName = "Deferred Indirect Graphics";
-                data.mShaderResourceName = "indirectUniformData";
-                data.miStart = 0;
-                data.miSize = (uint32_t)sizeof(DeferredIndirectUniformData);
-                data.mpData = &gDeferredIndirectUniformData;
-                gRenderer.addQueueData(data);
-
-                data.mJobName = "Deferred Indirect Front Face Graphics";
-                gRenderer.addQueueData(data);
-
-                break;
-            }
-
-            case GLFW_KEY_C:
-            {
-                if(giCameraMode == PROJECTION_PERSPECTIVE)
-                {
-                    giCameraMode = PROJECTION_ORTHOGRAPHIC;
-                    
-                }
-                else
-                {
-                    giCameraMode = PROJECTION_PERSPECTIVE;
-                }
-
-
-                break;
-            }
-
-            case GLFW_KEY_I:
-            {
-                setSwapChainRender("Ambient Occlusion Graphics", "Ambient Occlusion Output");
-                break;
-            }
-#endif // #if 0
 
         }
 
@@ -989,6 +823,9 @@ void start()
 
         data.mJobName = "Emissive Spatial Restir Graphics";
         gRenderer.addQueueData(data);
+
+        gLightDirection = normalize(float3(-0.25f, 1.0f, 0.0f));
+
 
     }
 
