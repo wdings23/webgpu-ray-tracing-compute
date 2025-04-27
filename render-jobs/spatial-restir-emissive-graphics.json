@@ -59,6 +59,13 @@
         }
     ],
     "ShaderResources": [
+        { 
+            "name" : "uniformData",
+            "type" : "buffer",
+            "size" : 256,
+            "shader_stage" : "fragment",
+            "usage": "uniform"
+        },
         {
             "name": "meshTriangleIndexRanges",
             "type": "buffer",

@@ -99,6 +99,11 @@ struct BVHNode2
     miMeshID: u32,
 };
 
+struct UniformData
+{
+    mfEmlssiveValue: f32,
+};
+
 struct DefaultUniformData
 {
     miScreenWidth: i32,
@@ -154,24 +159,27 @@ var motionVectorTexture: texture_2d<f32>;
 var prevMotionVectorTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
-var<storage, read> aMeshTriangleIndexRanges: array<MeshTriangleRange>;
+var<uniform> uniformBuffer: UniformData;
 
 @group(1) @binding(1)
-var<storage, read> aMeshMaterials: array<Material>;
+var<storage, read> aMeshTriangleIndexRanges: array<MeshTriangleRange>;
 
 @group(1) @binding(2)
-var<storage, read> aSceneBVHNodes: array<BVHNode2>;
+var<storage, read> aMeshMaterials: array<Material>;
 
 @group(1) @binding(3)
-var<storage, read> aSceneVertexPositions: array<VertexFormat>;
+var<storage, read> aSceneBVHNodes: array<BVHNode2>;
 
 @group(1) @binding(4)
-var<storage, read> aiSceneTriangleIndices: array<u32>;
+var<storage, read> aSceneVertexPositions: array<VertexFormat>;
 
 @group(1) @binding(5)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var<storage, read> aiSceneTriangleIndices: array<u32>;
 
 @group(1) @binding(6)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(7)
 var textureSampler: sampler;
 
 struct VertexOutput 
@@ -207,7 +215,6 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         u32(in.uv.y * f32(defaultUniformBuffer.miScreenWidth)) 
     );
 
-
     let centerWorldPosition: vec4<f32> = textureLoad(
         worldPositionTexture,
         screenCoord,
@@ -217,7 +224,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let iMesh: u32 = u32(centerWorldPosition.w);
     if(dot(aMeshMaterials[iMesh].mEmissive.xyz, aMeshMaterials[iMesh].mEmissive.xyz) > 0.0f)
     {
-        output.mRadiance = vec4<f32>(aMeshMaterials[iMesh].mEmissive.xyz, 1.0f);
+        output.mRadiance = vec4<f32>(aMeshMaterials[iMesh].mEmissive.xyz * uniformBuffer.mfEmlssiveValue, 1.0f);
         return output;
     }
 
@@ -371,7 +378,7 @@ fJacobian = 1.0f;
     {
         let iHitMesh: u32 = getMeshForTriangleIndex(intersectionInfo.miHitTriangle);
         let material: Material = aMeshMaterials[iHitMesh];
-        resultRadiance = material.mEmissive.xyz;
+        resultRadiance = material.mEmissive.xyz * uniformBuffer.mfEmlssiveValue;
 
         // distance for on-screen radiance and ambient occlusion
         var fDistance: f32 = length(candidateHitPosition.xyz - centerWorldPosition.xyz);

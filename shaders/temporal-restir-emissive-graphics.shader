@@ -99,6 +99,11 @@ struct BVHNode2
     miMeshID: u32,
 };
 
+struct UniformData
+{
+    mfEmlssiveValue: f32,
+};
+
 struct DefaultUniformData
 {
     miScreenWidth: i32,
@@ -169,33 +174,36 @@ var motionVectorTexture: texture_2d<f32>;
 var prevMotionVectorTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
-var hitTriangleTexture: texture_2d<f32>;
+var<uniform> uniformBuffer: UniformData;
 
 @group(1) @binding(1)
-var<storage, read> aMeshTriangleIndexRanges: array<MeshTriangleRange>;
+var hitTriangleTexture: texture_2d<f32>;
 
 @group(1) @binding(2)
-var<storage, read> aMeshMaterials: array<Material>;
+var<storage, read> aMeshTriangleIndexRanges: array<MeshTriangleRange>;
 
 @group(1) @binding(3)
-var<storage, read> aSceneBVHNodes: array<BVHNode2>;
+var<storage, read> aMeshMaterials: array<Material>;
 
 @group(1) @binding(4)
-var<storage, read> aSceneVertexPositions: array<VertexFormat>;
+var<storage, read> aSceneBVHNodes: array<BVHNode2>;
 
 @group(1) @binding(5)
-var<storage, read> aiSceneTriangleIndices: array<u32>;
+var<storage, read> aSceneVertexPositions: array<VertexFormat>;
 
 @group(1) @binding(6)
-var blueNoiseTexture: texture_2d<f32>;
+var<storage, read> aiSceneTriangleIndices: array<u32>;
 
 @group(1) @binding(7)
-var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
+var blueNoiseTexture: texture_2d<f32>;
 
 @group(1) @binding(8)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var sampleRadianceTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(9)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(10)
 var textureSampler: sampler;
 
 struct VertexOutput 
@@ -340,7 +348,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let meshMaterial: Material = aMeshMaterials[iMesh];
     if(dot(meshMaterial.mEmissive.xyz, meshMaterial.mEmissive.xyz) > 0.0f)
     {
-        output.mRadiance = vec4<f32>(meshMaterial.mEmissive.xyz, 1.0f);
+        output.mRadiance = vec4<f32>(meshMaterial.mEmissive.xyz * uniformBuffer.mfEmlssiveValue, 1.0f);
         output.mReservoir = vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
     }
 
@@ -451,7 +459,7 @@ fn temporalRestir(
     {
         let iHitMesh: u32 = getMeshForTriangleIndex(iHitTriangle);
         let material: Material = aMeshMaterials[iHitMesh];
-        candidateRadiance = vec4<f32>(material.mEmissive.xyz, 1.0f);
+        candidateRadiance = vec4<f32>(material.mEmissive.xyz * uniformBuffer.mfEmlssiveValue, 1.0f);
 
         // distance for on-screen radiance and ambient occlusion
         var fDistance: f32 = length(candidateHitPosition.xyz - worldPosition.xyz);

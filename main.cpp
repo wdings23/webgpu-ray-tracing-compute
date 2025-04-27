@@ -105,6 +105,12 @@ struct OutlineUniformData
 };
 OutlineUniformData gOutlineUniformData;
 
+struct EmissiveTemporalRestirUniformData
+{
+    float mfEmissiveSurfaceValue;
+};
+EmissiveTemporalRestirUniformData gEmissiveUniformData;
+
 void handleCameraMouseRotate(
     int32_t iX,
     int32_t iY,
@@ -538,6 +544,40 @@ void start()
                 break;
             }
 
+            case GLFW_KEY_L:
+            {
+                gEmissiveUniformData.mfEmissiveSurfaceValue += 0.1f;
+                Render::CRenderer::QueueData data;
+                data.mJobName = "Emissive Temporal Restir Graphics";
+                data.mShaderResourceName = "uniformData";
+                data.miStart = 0;
+                data.miSize = (uint32_t)sizeof(EmissiveTemporalRestirUniformData);
+                data.mpData = &gEmissiveUniformData;
+                gRenderer.addQueueData(data);
+
+                data.mJobName = "Emissive Spatial Restir Graphics";
+                gRenderer.addQueueData(data);
+
+                break;
+            }
+
+            case GLFW_KEY_K:
+            {
+                gEmissiveUniformData.mfEmissiveSurfaceValue = std::max(gEmissiveUniformData.mfEmissiveSurfaceValue - 0.1f, 0.0f);
+                Render::CRenderer::QueueData data;
+                data.mJobName = "Emissive Temporal Restir Graphics";
+                data.mShaderResourceName = "uniformData";
+                data.miStart = 0;
+                data.miSize = (uint32_t)sizeof(EmissiveTemporalRestirUniformData);
+                data.mpData = &gEmissiveUniformData;
+                gRenderer.addQueueData(data);
+
+                data.mJobName = "Emissive Spatial Restir Graphics";
+                gRenderer.addQueueData(data);
+
+                break;
+            }
+
 #if 0
             case GLFW_KEY_E:
             {
@@ -938,6 +978,17 @@ void start()
         data.miSize = (uint32_t)sizeof(OutlineUniformData);
         data.mpData = &gOutlineUniformData;
         //gRenderer.addQueueData(data);
+
+        gEmissiveUniformData.mfEmissiveSurfaceValue = 0.8f;
+        data.mJobName = "Emissive Temporal Restir Graphics";
+        data.mShaderResourceName = "uniformData";
+        data.miStart = 0;
+        data.miSize = (uint32_t)sizeof(EmissiveTemporalRestirUniformData);
+        data.mpData = &gEmissiveUniformData;
+        gRenderer.addQueueData(data);
+
+        data.mJobName = "Emissive Spatial Restir Graphics";
+        gRenderer.addQueueData(data);
 
     }
 

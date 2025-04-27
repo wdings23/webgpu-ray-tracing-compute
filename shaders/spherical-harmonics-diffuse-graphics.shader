@@ -208,7 +208,19 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         shOutput.mCoefficients1,
         shOutput.mCoefficients2
     );
-    
+
+    // clamp history count, lower means faster update
+    let kfMaxHistoryCount: f32 = 30.0f;
+    fHistoryCount += 1.0f;
+    if(fHistoryCount >= kfMaxHistoryCount)
+    {
+        let fPct: f32 = kfMaxHistoryCount / fHistoryCount;
+        shOutput.mCoefficients0 *= fPct;
+        shOutput.mCoefficients1 *= fPct;
+        shOutput.mCoefficients2 *= fPct;
+        fHistoryCount = kfMaxHistoryCount;
+    }
+
     let decodedSH: vec3<f32> = decodeFromSphericalHarmonicCoefficients(
         shOutput,
         normal.xyz,
