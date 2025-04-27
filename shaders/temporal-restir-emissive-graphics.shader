@@ -257,7 +257,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     let screenCoord: vec2<u32> = vec2<u32>(
         u32(in.uv.x * f32(defaultUniformBuffer.miScreenWidth)),
-        u32(in.uv.y * f32(defaultUniformBuffer.miScreenWidth)) 
+        u32(in.uv.y * f32(defaultUniformBuffer.miScreenHeight)) 
     );
 
     var randomResult: RandomResult = initRand(
