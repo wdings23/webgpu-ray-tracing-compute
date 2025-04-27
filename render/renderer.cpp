@@ -211,12 +211,12 @@ namespace Render
                 uniformBuffer.miSelectedMesh = -1;
                 uniformBuffer.miPadding = 0;
 
-                mpDevice->GetQueue().WriteBuffer(
-                    maRenderJobs["Mesh Selection Graphics"]->mUniformBuffers["uniformBuffer"],
-                    0,
-                    &uniformBuffer,
-                    sizeof(MeshSelectionUniformData)
-                );
+                //mpDevice->GetQueue().WriteBuffer(
+                //    maRenderJobs["Mesh Selection Graphics"]->mUniformBuffers["uniformBuffer"],
+                //    0,
+                //    &uniformBuffer,
+                //    sizeof(MeshSelectionUniformData)
+                //);
 
                 mbWaitingForMeshSelection = true;
                 mSelectedCoord = int2(-1, -1);
@@ -509,6 +509,7 @@ namespace Render
 
         }   // for all render jobs
 
+#if 0
         // get selection info from shader via read back buffer
         if(mbWaitingForMeshSelection)
         {
@@ -529,6 +530,7 @@ namespace Render
             printf("copy selection buffer\n");
             mbSelectedBufferCopied = true;
         }
+#endif // #if 0
 
         // submit all the job commands
         mpDevice->GetQueue().Submit(
@@ -739,14 +741,14 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["TAA Graphics"]->mOutputImageAttachments["TAA Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments["Selection Output"];
-        //wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
+        wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Sample Ray Direction Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Spherical Harmonics Diffuse Graphics"]->mOutputImageAttachments["Inverse Spherical Harmonics Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Direct Radiance Graphics"]->mOutputImageAttachments["Direct Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Debug Irradiance Cache Graphics"]->mOutputImageAttachments["Irradiance Cache Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Debug Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
-        wgpu::Texture& swapChainTexture = maRenderJobs["Ray Tracing Composite Graphics"]->mOutputImageAttachments["Ray Tracing Composite Output"];
+        //wgpu::Texture& swapChainTexture = maRenderJobs["Ray Tracing Composite Graphics"]->mOutputImageAttachments["Ray Tracing Composite Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Spatial Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Spherical Harmonics Emissive Graphics"]->mOutputImageAttachments["Emissive Inverse Spherical Harmonics Output"];

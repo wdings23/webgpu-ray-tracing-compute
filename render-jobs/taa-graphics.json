@@ -15,9 +15,9 @@
             "ParentJobName": "Deferred Indirect Graphics"
         },
         {
-            "Name" : "Composite Output",
+            "Name" : "Ray Tracing Composite Output",
             "Type": "TextureInput",
-            "ParentJobName": "Composite Graphics"
+            "ParentJobName": "Ray Tracing Composite Graphics"
         },
         {
             "Name" : "Previous TAA Output",

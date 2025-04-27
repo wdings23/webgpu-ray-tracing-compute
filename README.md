@@ -36,5 +36,5 @@ npx http-server -p 8000
 http://localhost:8000/app.html
 
 # link
-TBD
+[http://](https://wdings23.github.io/webgpu-ray-tracing-compute.html)
 

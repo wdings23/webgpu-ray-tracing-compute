@@ -538,6 +538,7 @@ void start()
                 break;
             }
 
+#if 0
             case GLFW_KEY_E:
             {
                 // explode mesh 
@@ -785,6 +786,7 @@ void start()
                 setSwapChainRender("Ambient Occlusion Graphics", "Ambient Occlusion Output");
                 break;
             }
+#endif // #if 0
 
         }
 
@@ -913,7 +915,7 @@ void start()
         data.miStart = 0;
         data.miSize = (uint32_t)sizeof(AOUniformData);
         data.mpData = &gAOUniformData;
-        gRenderer.addQueueData(data);
+        //gRenderer.addQueueData(data);
 
         gDeferredIndirectUniformData.mfCrossSectionPlaneD = 100000.0f;
         gDeferredIndirectUniformData.mfExplosionMultiplier = 0.0f;
@@ -926,7 +928,7 @@ void start()
         gRenderer.addQueueData(data);
 
         data.mJobName = "Deferred Indirect Front Face Graphics";
-        gRenderer.addQueueData(data);
+        //gRenderer.addQueueData(data);
 
         gOutlineUniformData.mfDepthThreshold = 10000.0f;
         gOutlineUniformData.mfNormalThreshold = 10000.0f;
@@ -935,7 +937,7 @@ void start()
         data.mShaderResourceName = "uniformBuffer";
         data.miSize = (uint32_t)sizeof(OutlineUniformData);
         data.mpData = &gOutlineUniformData;
-        gRenderer.addQueueData(data);
+        //gRenderer.addQueueData(data);
 
     }
 
