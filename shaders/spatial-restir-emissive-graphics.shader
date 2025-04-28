@@ -279,8 +279,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     // previous spatial output as starting point
     var result: TemporalRestirResult;
     var centerReservoir: vec4<f32> = textureLoad(
-        prevSpatialReservoirTexture,
-        prevScreenCoord,
+        temporalReservoirTexture,
+        screenCoord,
         0) * fValidHistory;
     var centerRadiance: vec4<f32> = textureLoad(
         temporalRadianceTexture,
@@ -289,8 +289,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     ) * fValidHistory;
     var candidateReservoir: vec4<f32> = centerReservoir;
     var centerHitPosition: vec4<f32> = textureLoad(
-        prevSpatialHitPositionTexture,
-        prevScreenCoord,
+        hitPositionTexture,
+        screenCoord,
         0) * fValidHistory;
     var centerHitNormal: vec4<f32> = textureLoad(
         hitNormalTexture,
