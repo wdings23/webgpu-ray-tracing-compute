@@ -228,6 +228,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 {
     var output: FragmentOutput;
 
+    let fOneOverPDF: f32 = 1.0f / PI;
+
     let screenCoord: vec2<u32> = vec2<u32>(
         u32(in.uv.x * f32(defaultUniformBuffer.miScreenWidth)),
         u32(in.uv.y * f32(defaultUniformBuffer.miScreenHeight)) 
@@ -294,6 +296,19 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         hitNormalTexture,
         screenCoord,
         0) * fValidHistory;
+
+    var fCenterLuminance = 0.0f;
+    let iCenterHitMesh: u32 = getMeshForTriangleIndex(u32(centerHitPosition.w));
+    {
+        let centerMaterial: Material = aMeshMaterials[iCenterHitMesh];
+        let diff: vec3<f32> = centerHitPosition.xyz - centerWorldPosition.xyz;
+        let fDistance: f32 = dot(diff, diff);
+        let fDistanceAttenuation: f32 = max(1.0f / max(fDistance, 1.0f), 1.0f);
+        let rayDirection: vec3<f32> = normalize(diff);
+        let fRadianceDP: f32 = max(dot(normal.xyz, rayDirection), 0.0f);
+        centerRadiance = vec4<f32>(centerMaterial.mEmissive.xyz * fRadianceDP * fDistanceAttenuation * fOneOverPDF, 1.0f);
+        fCenterLuminance = computeLuminance(centerRadiance.xyz);
+    }
 
     var candidateHitPosition: vec4<f32> = centerHitPosition;
     var candidateHitNormal: vec4<f32> = centerHitNormal;
@@ -390,7 +405,6 @@ fJacobian = 1.0f;
         candidateReservoir = updateResult.mReservoir;
     }
 
-    let fOneOverPDF: f32 = 1.0f / PI;
     var candidateRadiance: vec3<f32> = centerRadiance.xyz;
 
     var ray: Ray;
@@ -403,16 +417,16 @@ fJacobian = 1.0f;
         candidateRadiance = material.mEmissive.xyz * uniformBuffer.mfEmissiveValue;
 
         // distance for on-screen radiance and ambient occlusion
-        let diff: vec3<f32> = candidateHitPosition.xyz - centerWorldPosition.xyz;
+        var diff: vec3<f32> = candidateHitPosition.xyz - centerWorldPosition.xyz;
         var fDistance: f32 = dot(diff, diff);
-        let fDistanceAttenuation: f32 = max(1.0f / max(fDistance, 1.0f), 1.0f);
+        var fDistanceAttenuation: f32 = max(1.0f / max(fDistance, 1.0f), 1.0f);
 
-        let rayDirection: vec3<f32> = normalize(diff);
-        let fRadianceDP: f32 = max(dot(normal.xyz, rayDirection), 0.0f);
+        var rayDirection: vec3<f32> = normalize(diff);
+        var fRadianceDP: f32 = max(dot(normal.xyz, rayDirection), 0.0f);
         candidateRadiance = candidateRadiance * fCandidateJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
 
         let fCandidatePHat: f32 = computeLuminance(candidateRadiance);
-        //if(fCandidatePHat > candidateReservoir.y)
+        if(fCandidatePHat > fCenterLuminance)
         {
             centerRadiance = vec4<f32>(candidateRadiance, 1.0f);
             centerReservoir = candidateReservoir;
@@ -421,6 +435,7 @@ fJacobian = 1.0f;
             output.mHitPosition = centerHitPosition;
             centerReservoir.y = fCandidatePHat;
         }
+        
     }
     
     output.mRadiance = centerRadiance;
