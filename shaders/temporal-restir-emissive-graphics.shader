@@ -302,13 +302,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     var bTraceRay: bool = false;
     var rayDirection: vec3<f32> = normalize(hitPosition.xyz - worldPosition.xyz);
-    if(defaultUniformBuffer.miFrame > 0 && defaultUniformBuffer.miFrame % 6 == 0)
-    {
-        rayDirection = normalize(result.mHitPosition.xyz - worldPosition.xyz);
-        bTraceRay = true;
-    }
-
-//bTraceRay = false;
+    //if(defaultUniformBuffer.miFrame > 0 && defaultUniformBuffer.miFrame % 6 == 0)
+    //{
+    //    rayDirection = normalize(result.mHitPosition.xyz - worldPosition.xyz);
+    //    bTraceRay = true;
+    //}
 
     let fPerSampleSize: f32 = 0.1f;
     let fReservoirSize: f32 = 10.0f;
@@ -328,16 +326,16 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     let iMesh: u32 = u32(floor(ceil(worldPosition.w - fract(worldPosition.w) - 0.5f)));
 
-    result = permutationSampling(
-        result,
-        vec2i(i32(screenCoord.x), i32(screenCoord.y)),
-        worldPosition.xyz,
-        normal.xyz,
-        i32(iMesh),
-        fReservoirSize,
-        randomResult,
-        fPerSampleSize * 0.1f
-    );
+    //result = permutationSampling(
+    //    result,
+    //    vec2i(i32(screenCoord.x), i32(screenCoord.y)),
+    //    worldPosition.xyz,
+    //    normal.xyz,
+    //    i32(iMesh),
+    //    fReservoirSize,
+    //    randomResult,
+    //    fPerSampleSize * 0.1f
+    //);
 
     result.mReservoir.w = clamp(result.mReservoir.x / max(result.mReservoir.z * result.mReservoir.y, 0.001f), 0.0f, 1.0f);
     output.mRadiance = result.mRadiance * result.mReservoir.w;
