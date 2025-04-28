@@ -33,10 +33,26 @@
             "Name": "Material Output",
             "Type": "TextureInput",
             "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name": "World Position Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name": "Sky Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Atmosphere Graphics"
         }
     ],
     "ShaderResources": [
-        
+        { 
+            "name" : "uniformData",
+            "type" : "buffer",
+            "size" : 256,
+            "shader_stage" : "fragment",
+            "usage": "uniform"
+        }
     ],
     "BlendStates": [
         {

@@ -365,6 +365,31 @@ void render()
     drawDesc.mpCameraLookAt = &gCamera.getLookAt();
 
 
+    {
+        float4x4 viewMatrix = gCamera.getViewMatrix() * gCamera.getProjectionMatrix();
+
+        float4x4 inverseViewMatrix = invert(gCamera.getViewMatrix());
+        
+        float4x4 projectionMatrix = perspectiveProjection(PI * 0.5f, kWidth, kHeight, 100.0f, 1.0f);
+        projectionMatrix.mafEntries[5] *= -1.0f;
+        projectionMatrix.mafEntries[10] *= -1.0f;
+        float4x4 inverseProjectionMatrix = invert(projectionMatrix);
+        float4 test = inverseProjectionMatrix * float4(0.0f, 1.0f, 1.0f, 1.0f);
+        test.x /= test.w;
+        test.y /= test.w;
+        test.z /= test.w;
+
+        float4 worldPosition = inverseViewMatrix * test;
+
+        Render::CRenderer::QueueData data;
+        data.miSize = sizeof(float4x4);
+        data.miStart = 0;
+        data.mJobName = "Ray Tracing Composite Graphics";
+        data.mpData = &inverseProjectionMatrix;
+        data.mShaderResourceName = "uniformData";
+        gRenderer.addQueueData(data);
+    }
+
     // update default uniform buffer
     {
         struct DefaultUniformData

@@ -315,7 +315,7 @@ mat4 perspectiveProjection(float fFOV,
     float afVal[16];
     memset(afVal, 0, sizeof(afVal));
     afVal[0] = fFD * fOneOverAspect;
-    afVal[5] = -fFD;
+    afVal[5] = fFD;
     afVal[10] = -(fFar + fNear) * fOneOverFarMinusNear;
     afVal[14] = -1.0f;
     afVal[11] = -2.0f * fFar * fNear * fOneOverFarMinusNear;
@@ -325,9 +325,9 @@ mat4 perspectiveProjection(float fFOV,
     afVal[10] = -fFar * fOneOverFarMinusNear;
     afVal[11] = -fFar * fNear * fOneOverFarMinusNear;
 #else
-#if !defined(GLES_RENDER)
-	afVal[5] *= -1.0f;
-#endif // GLES_RENDER
+//#if !defined(GLES_RENDER)
+//	afVal[5] *= -1.0f;
+//#endif // GLES_RENDER
 
 #endif // __APPLE__
     
