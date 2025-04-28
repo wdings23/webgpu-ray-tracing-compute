@@ -101,7 +101,7 @@ struct BVHNode2
 
 struct UniformData
 {
-    mfEmlssiveValue: f32,
+    mfEmissiveValue: f32,
 };
 
 struct DefaultUniformData
@@ -141,22 +141,37 @@ var normalTexture: texture_2d<f32>;
 var temporalReservoirTexture: texture_2d<f32>;
 
 @group(0) @binding(3)
-var hitPositionTexture: texture_2d<f32>;
+var temporalRadianceTexture: texture_2d<f32>;
 
 @group(0) @binding(4)
-var hitNormalTexture: texture_2d<f32>;
+var hitPositionTexture: texture_2d<f32>;
 
 @group(0) @binding(5)
-var prevWorldPositionTexture: texture_2d<f32>;
+var hitNormalTexture: texture_2d<f32>;
 
 @group(0) @binding(6)
-var prevNormalTexture: texture_2d<f32>;
+var prevWorldPositionTexture: texture_2d<f32>;
 
 @group(0) @binding(7)
-var motionVectorTexture: texture_2d<f32>;
+var prevNormalTexture: texture_2d<f32>;
 
 @group(0) @binding(8)
+var motionVectorTexture: texture_2d<f32>;
+
+@group(0) @binding(9)
 var prevMotionVectorTexture: texture_2d<f32>;
+
+@group(0) @binding(10)
+var prevSpatialReservoirTexture: texture_2d<f32>;
+
+@group(0) @binding(11)
+var prevSpatialHitPositionTexture: texture_2d<f32>;
+
+@group(0) @binding(12)
+var sampleHitPositionTexture: texture_2d<f32>;
+
+@group(0) @binding(13)
+var sampleHitNormalTexture: texture_2d<f32>;
 
 @group(1) @binding(0)
 var<uniform> uniformBuffer: UniformData;
@@ -191,7 +206,9 @@ struct VertexOutput
 struct FragmentOutput 
 {
     @location(0) mRadiance: vec4<f32>,
-    @location(1) mHitPosition: vec4<f32>,
+    @location(1) mReservoir: vec4<f32>,
+    @location(2) mHitPosition: vec4<f32>,
+    @location(3) mHitNormal: vec4<f32>
 };
 
 @vertex
@@ -225,24 +242,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let iMesh: u32 = u32(centerWorldPosition.w);
     if(dot(aMeshMaterials[iMesh].mEmissive.xyz, aMeshMaterials[iMesh].mEmissive.xyz) > 0.0f)
     {
-        output.mRadiance = vec4<f32>(aMeshMaterials[iMesh].mEmissive.xyz * uniformBuffer.mfEmlssiveValue, 1.0f);
+        output.mRadiance = vec4<f32>(aMeshMaterials[iMesh].mEmissive.xyz * uniformBuffer.mfEmissiveValue, 1.0f);
         return output;
     }
 
     let normal: vec4<f32> = textureLoad(
         normalTexture,
-        screenCoord,
-        0
-    );
-
-    let hitPosition: vec4<f32> = textureLoad(
-        hitPositionTexture,
-        screenCoord,
-        0
-    );
-
-    let hitNormal: vec4<f32> = textureLoad(
-        hitNormalTexture,
         screenCoord,
         0
     );
@@ -269,25 +274,35 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     }
     let fValidHistory: f32 = 1.0f - fDisocclusion;
 
+    // previous spatial output as starting point
     var result: TemporalRestirResult;
-    var resultReservoir: vec4<f32> = textureLoad(
-        temporalReservoirTexture,
-        screenCoord,
+    var centerReservoir: vec4<f32> = textureLoad(
+        prevSpatialReservoirTexture,
+        prevScreenCoord,
         0) * fValidHistory;
-    var candidateHitPosition: vec4<f32> = textureLoad(
-        hitPositionTexture,
+    var centerRadiance: vec4<f32> = textureLoad(
+        temporalRadianceTexture,
         screenCoord,
+        0
+    ) * fValidHistory;
+    var candidateReservoir: vec4<f32> = centerReservoir;
+    var centerHitPosition: vec4<f32> = textureLoad(
+        prevSpatialHitPositionTexture,
+        prevScreenCoord,
         0) * fValidHistory;
-    var candidateHitNormal: vec4<f32> = textureLoad(
+    var centerHitNormal: vec4<f32> = textureLoad(
         hitNormalTexture,
         screenCoord,
         0) * fValidHistory;
 
+    var candidateHitPosition: vec4<f32> = centerHitPosition;
+    var candidateHitNormal: vec4<f32> = centerHitNormal;
+
     var iCandidateHitTriangle: u32 = u32(candidateHitPosition.w);
 
-    let kfSampleRadius: f32 = 20.0f;
+    let kfSampleRadius: f32 = 30.0f;
     let kiNumNeighbors: u32 = 20u;
-    var fCandidateJabian: f32 = 1.0f;
+    var fCandidateJacobian: f32 = 1.0f;
     for(var iNeighbor: u32 = 0u; iNeighbor < kiNumNeighbors; iNeighbor++)
     {
         randomResult = nextRand(randomResult.miSeed);
@@ -297,6 +312,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
         var iOffsetX: i32 = i32((fOffsetX * 2.0f - 1.0f) * kfSampleRadius);
         var iOffsetY: i32 = i32((fOffsetY * 2.0f - 1.0f) * kfSampleRadius);
+
+        if(iNeighbor == 0u)
+        {
+            iOffsetX = 0;
+            iOffsetY = 0;
+        }
 
         let sampleScreenCoord: vec2<u32> = vec2<u32>(
             u32(max(i32(screenCoord.x) + iOffsetX, 0)),
@@ -347,11 +368,11 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         var fDP1: f32 = max(dot(neighborTemporalHitNormal.xyz, neighborToNeighborHitPointNormalized * -1.0f), 1.0e-4f);
         fJacobian = clamp(fDP0 / fDP1, 0.0f, 1.0f);
 
-//fJacobian = 1.0f;
+fJacobian = 1.0f;
 
         randomResult = nextRand(randomResult.miSeed);
         var updateResult: ReservoirResult = updateReservoir(
-            resultReservoir,
+            candidateReservoir,
             neighborTemporalReservoir.y * fJacobian,
             neighborTemporalReservoir.z,
             randomResult.mfNum
@@ -361,16 +382,16 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         {
             candidateHitPosition = neighborTemporalHitPosition;
             candidateHitNormal = neighborTemporalHitNormal;
-            fCandidateJabian = fJacobian;
+            fCandidateJacobian = fJacobian;
 
             iCandidateHitTriangle = u32(neighborTemporalHitPosition.w);
         }
 
-        resultReservoir = updateResult.mReservoir;
+        candidateReservoir = updateResult.mReservoir;
     }
 
     let fOneOverPDF: f32 = 1.0f / PI;
-    var resultRadiance = vec3<f32>(0.0f, 0.0f, 0.0f);
+    var candidateRadiance: vec3<f32> = centerRadiance.xyz;
 
     var ray: Ray;
     ray.mOrigin = centerWorldPosition;
@@ -379,19 +400,32 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     {
         let iHitMesh: u32 = getMeshForTriangleIndex(intersectionInfo.miHitTriangle);
         let material: Material = aMeshMaterials[iHitMesh];
-        resultRadiance = material.mEmissive.xyz * uniformBuffer.mfEmlssiveValue;
+        candidateRadiance = material.mEmissive.xyz * uniformBuffer.mfEmissiveValue;
 
         // distance for on-screen radiance and ambient occlusion
-        var fDistance: f32 = length(candidateHitPosition.xyz - centerWorldPosition.xyz);
-        let fDistanceAttenuation: f32 = max(1.0f / max(fDistance * fDistance, 1.0f), 1.0f);
+        let diff: vec3<f32> = candidateHitPosition.xyz - centerWorldPosition.xyz;
+        var fDistance: f32 = dot(diff, diff);
+        let fDistanceAttenuation: f32 = max(1.0f / max(fDistance, 1.0f), 1.0f);
 
-        let rayDirection: vec3<f32> = normalize(candidateHitPosition.xyz - centerWorldPosition.xyz);
+        let rayDirection: vec3<f32> = normalize(diff);
         let fRadianceDP: f32 = max(dot(normal.xyz, rayDirection), 0.0f);
-        resultRadiance = resultRadiance * fCandidateJabian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
+        candidateRadiance = candidateRadiance * fCandidateJacobian * fRadianceDP * fDistanceAttenuation * fOneOverPDF;
+
+        let fCandidatePHat: f32 = computeLuminance(candidateRadiance);
+        //if(fCandidatePHat > candidateReservoir.y)
+        {
+            centerRadiance = vec4<f32>(candidateRadiance, 1.0f);
+            centerReservoir = candidateReservoir;
+            centerHitPosition = candidateHitPosition;
+            centerHitPosition.w = f32(intersectionInfo.miHitTriangle);
+            output.mHitPosition = centerHitPosition;
+            centerReservoir.y = fCandidatePHat;
+        }
     }
     
-    output.mRadiance = vec4<f32>(resultRadiance.xyz, 1.0f);
-    output.mHitPosition = vec4<f32>(intersectionInfo.mHitPosition, f32(intersectionInfo.miHitTriangle));
+    output.mRadiance = centerRadiance;
+    output.mReservoir = centerReservoir;
+    output.mHitPosition = centerHitPosition;
 
     return output;
 }
@@ -414,9 +448,13 @@ fn updateReservoir(
     //var fMult: f32 = clamp(fPHat, 0.3f, 1.0f); 
     ret.mReservoir.z += fM; // * fMult;
     
-    var fWeightPct: f32 = fPHat / ret.mReservoir.x;
+    var fWeightPct: f32 = 0.0f; //fPHat / ret.mReservoir.x;
+    if(ret.mReservoir.x > 0.0f)
+    {
+        fWeightPct = fPHat / ret.mReservoir.x;
+    }
 
-    if(fRand < fWeightPct || reservoir.z <= 0.0f || reservoir.x <= 0.0f)
+    if(fRand < fWeightPct || reservoir.z <= 0.0f || reservoir.x <= 0.0f || (reservoir.y <= 0.0f && fPHat > 0.0f))
     {
         ret.mReservoir.y = fPHat;
         ret.mbExchanged = true;

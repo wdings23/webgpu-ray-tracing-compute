@@ -76,6 +76,7 @@ struct TemporalRestirResult
     mIntersectionResult: IntersectBVHResult,
     mRandomResult: RandomResult,
     mfNumValidSamples: f32,
+    mbExchanged: bool,
 };
 
 struct ReservoirResult
@@ -328,6 +329,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         u32(prevScreenUV.y * f32(defaultUniformBuffer.miScreenHeight))
     );
 
+    // use previous output as starting point
     var result: TemporalRestirResult;
     result.mReservoir = textureLoad(
         prevTemporalReservoirTexture,
@@ -347,6 +349,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         0) * fValidHistory;
     result.mIntersectionResult.miHitTriangle = UINT32_MAX;
     result.mfNumValidSamples = 0.0f;
+    result.mbExchanged = false;
 
     // more samples for disoccluded pixel
     var iNumCenterSamples: i32 = 1;
@@ -432,25 +435,31 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             fIntersection = f32(result.mIntersectionResult.miHitTriangle);
         }
         //out.rayDirection = vec4<f32>(sampleRayDirection.xyz, fIntersection);
-        out.sampleRayHitPosition = vec4<f32>(result.mIntersectionResult.mHitPosition, fIntersection);
-        out.sampleRayHitNormal = vec4<f32>(result.mIntersectionResult.mHitNormal, fIntersection);
-        out.sampleRayDirection = vec4<f32>(sampleRayDirection, fIntersection);
-    
-        textureStore(
-            sampleRadianceTexture, 
-            screenCoord,
-            result.mSampleRadiance);
-
-        var iHitMesh: u32 = UINT32_MAX; 
-        if(result.mIntersectionResult.miHitTriangle != UINT32_MAX) 
+        if(result.mbExchanged || dot(out.sampleRayHitPosition.xyz, out.sampleRayHitPosition.xyz) <= 0.0f)
         {
-            iHitMesh = getMeshForTriangleIndex(result.mIntersectionResult.miHitTriangle);
+            out.sampleRayHitPosition = vec4<f32>(result.mIntersectionResult.mHitPosition, fIntersection);
+            out.sampleRayHitNormal = vec4<f32>(result.mIntersectionResult.mHitNormal, fIntersection);
+            out.sampleRayDirection = vec4<f32>(sampleRayDirection, fIntersection);
+        
+            textureStore(
+                sampleRadianceTexture, 
+                screenCoord,
+                result.mSampleRadiance);
+
+            var iHitMesh: u32 = UINT32_MAX; 
+            if(result.mIntersectionResult.miHitTriangle != UINT32_MAX) 
+            {
+                iHitMesh = getMeshForTriangleIndex(result.mIntersectionResult.miHitTriangle);
+            }
+            if(iHitMesh < 100000u)
+            {
+                textureStore(
+                    hitTriangleTexture,
+                    screenCoord,
+                    vec4<f32>(fIntersection, f32(iHitMesh), 0.0f, 0.0f)
+                );
+            }
         }
-        textureStore(
-            hitTriangleTexture,
-            screenCoord,
-            vec4<f32>(fIntersection, f32(iHitMesh), 0.0f, 0.0f)
-        );
     }
 
     var firstResult: TemporalRestirResult = result;
@@ -589,14 +598,17 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             1.0f, 
             false);
 
-        if(result.mIntersectionResult.miHitTriangle != UINT32_MAX) 
+        if(result.mbExchanged && result.mIntersectionResult.miHitTriangle != UINT32_MAX) 
         {
             var iHitMesh: u32 = getMeshForTriangleIndex(result.mIntersectionResult.miHitTriangle);
-            textureStore(
-                hitTriangleTexture,
-                screenCoord,
-                vec4<f32>(f32(result.mIntersectionResult.miHitTriangle), f32(iHitMesh), 0.0f, 0.0f)
-            );
+            if(iHitMesh <= 100000u)
+            {
+                textureStore(
+                    hitTriangleTexture,
+                    screenCoord,
+                    vec4<f32>(f32(result.mIntersectionResult.miHitTriangle), f32(iHitMesh), 0.0f, 0.0f)
+                );
+            }
         }
         
 
@@ -990,7 +1002,8 @@ fn temporalRestir(
     ret.mIntersectionResult = intersectionInfo;
 
     ret.mfNumValidSamples += fM * f32(fLuminance > 0.0f);
-    
+    ret.mbExchanged = updateResult.mbExchanged;
+
     return ret;
 }
 

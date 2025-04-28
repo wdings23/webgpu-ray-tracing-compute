@@ -101,7 +101,7 @@ struct BVHNode2
 
 struct UniformData
 {
-    mfEmlssiveValue: f32,
+    mfEmissiveValue: f32,
 };
 
 struct DefaultUniformData
@@ -302,11 +302,13 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     var bTraceRay: bool = false;
     var rayDirection: vec3<f32> = normalize(hitPosition.xyz - worldPosition.xyz);
-    if(defaultUniformBuffer.miFrame > 0 && defaultUniformBuffer.miFrame % 4 == 0)
+    if(defaultUniformBuffer.miFrame > 0 && defaultUniformBuffer.miFrame % 6 == 0)
     {
         rayDirection = normalize(result.mHitPosition.xyz - worldPosition.xyz);
         bTraceRay = true;
     }
+
+//bTraceRay = false;
 
     let fPerSampleSize: f32 = 0.1f;
     let fReservoirSize: f32 = 10.0f;
@@ -348,7 +350,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     let meshMaterial: Material = aMeshMaterials[iMesh];
     if(dot(meshMaterial.mEmissive.xyz, meshMaterial.mEmissive.xyz) > 0.0f)
     {
-        output.mRadiance = vec4<f32>(meshMaterial.mEmissive.xyz * uniformBuffer.mfEmlssiveValue, 1.0f);
+        output.mRadiance = vec4<f32>(meshMaterial.mEmissive.xyz * uniformBuffer.mfEmissiveValue, 1.0f);
         output.mReservoir = vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f);
     }
 
@@ -410,7 +412,7 @@ fn temporalRestir(
             intersectionInfo.miHitTriangle = UINT32_MAX;
         }
     }
-
+    
     // get the non-disoccluded and non-out-of-bounds pixel
     var iDisoccluded: i32 = 1;
     var prevInputTexCoord: vec2<f32> = getPreviousScreenUV(inputTexCoord);
@@ -434,6 +436,7 @@ fn temporalRestir(
         0
     );
 
+    // hit triangle from intersection info or load from hit triangle info texture
     var iHitTriangle: u32 = u32(candidateHitPosition.w);
     if(bTraceRay)
     {
@@ -459,7 +462,7 @@ fn temporalRestir(
     {
         let iHitMesh: u32 = getMeshForTriangleIndex(iHitTriangle);
         let material: Material = aMeshMaterials[iHitMesh];
-        candidateRadiance = vec4<f32>(material.mEmissive.xyz * uniformBuffer.mfEmlssiveValue, 1.0f);
+        candidateRadiance = vec4<f32>(material.mEmissive.xyz * uniformBuffer.mfEmissiveValue, 1.0f);
 
         // distance for on-screen radiance and ambient occlusion
         var fDistance: f32 = length(candidateHitPosition.xyz - worldPosition.xyz);
@@ -1179,13 +1182,17 @@ fn permutationSampling(
 
     //ret.mReservoir.z = result.mReservoir.z;
 
+    // check if ray intersects different triangle
     var ray: Ray;
     ray.mDirection = vec4<f32>(ret.mRayDirection.xyz, 1.0f);
     ray.mOrigin = vec4<f32>(worldPosition.xyz + result.mRayDirection.xyz * 0.01f, 1.0f);
     var intersectionInfo: IntersectBVHResult;
     intersectionInfo = intersectBVH4(ray, 0u);
-    if((length(result.mHitPosition.xyz) >= RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) < RAY_LENGTH) || 
-    (length(result.mHitPosition.xyz) < RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) >= RAY_LENGTH))
+    //if((length(result.mHitPosition.xyz) >= RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) < RAY_LENGTH) || 
+    //(length(result.mHitPosition.xyz) < RAY_LENGTH && abs(intersectionInfo.mHitPosition.x) >= RAY_LENGTH))
+    let iHitMesh: u32 = getMeshForTriangleIndex(intersectionInfo.miHitTriangle);
+    let material: Material = aMeshMaterials[iHitMesh];
+    if(dot(material.mEmissive.xyz, material.mEmissive.xyz) <= 0.0f)
     {
         ret = result;
     }

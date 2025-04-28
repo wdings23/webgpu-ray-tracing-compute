@@ -743,7 +743,7 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["TAA Graphics"]->mOutputImageAttachments["TAA Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments["Selection Output"];
-        wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
+        //wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Sample Ray Direction Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Spherical Harmonics Diffuse Graphics"]->mOutputImageAttachments["Inverse Spherical Harmonics Output"];
@@ -752,7 +752,7 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["Debug Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Ray Tracing Composite Graphics"]->mOutputImageAttachments["Ray Tracing Composite Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
-        //wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Spatial Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
+        wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Spatial Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Spherical Harmonics Emissive Graphics"]->mOutputImageAttachments["Emissive Inverse Spherical Harmonics Output"];
         //assert(maRenderJobs.find("Mesh Selection Graphics") != maRenderJobs.end());
         //assert(maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.find("Selection Output") != maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.end());

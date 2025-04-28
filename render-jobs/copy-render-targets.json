@@ -167,6 +167,28 @@
             "ParentJobName": "Spherical Harmonics Emissive Graphics",
             "ParentName": "Emissive Inverse Spherical Harmonics Output",
             "Format": "rgba32float"
+        },
+
+        {
+            "Name": "Previous Emissive Spatial Reservoir Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Emissive Spatial Restir Graphics",
+            "ParentName": "Reservoir Output",
+            "Format": "rgba16float"
+        },
+        {
+            "Name": "Previous Emissive Spatial Radiance Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Emissive Spatial Restir Graphics",
+            "ParentName": "Radiance Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Emissive Spatial Hit Position Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Emissive Spatial Restir Graphics",
+            "ParentName": "Hit Position Output",
+            "Format": "rgba32float"
         }
     ]
 }
