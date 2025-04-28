@@ -190,7 +190,8 @@ struct VertexOutput
 
 struct FragmentOutput 
 {
-    @location(0) mRadiance: vec4<f32>
+    @location(0) mRadiance: vec4<f32>,
+    @location(1) mHitPosition: vec4<f32>,
 };
 
 @vertex
@@ -248,7 +249,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
 
     var randomResult: RandomResult = initRand(
         u32(in.uv.x * 100.0f + in.uv.y * 200.0f) + u32(defaultUniformBuffer.mfRand0 * 100.0f),
-        u32(in.pos.x * 10.0f + in.pos.z * 20.0f) + u32(defaultUniformBuffer.mfRand0 * 100.0f),
+        u32(in.pos.x * 10.0f + in.pos.z * 20.0f) + u32(defaultUniformBuffer.mfRand1 * 100.0f),
         10u);
 
     var prevScreenUV: vec2<f32> = getPreviousScreenUV(in.uv.xy);
@@ -294,8 +295,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         randomResult = nextRand(randomResult.miSeed);
         var fOffsetY: f32 = randomResult.mfNum;
 
-        var iOffsetX: i32 = i32(fOffsetX * kfSampleRadius);
-        var iOffsetY: i32 = i32(fOffsetY * kfSampleRadius);
+        var iOffsetX: i32 = i32((fOffsetX * 2.0f - 1.0f) * kfSampleRadius);
+        var iOffsetY: i32 = i32((fOffsetY * 2.0f - 1.0f) * kfSampleRadius);
 
         let sampleScreenCoord: vec2<u32> = vec2<u32>(
             u32(max(i32(screenCoord.x) + iOffsetX, 0)),
@@ -339,14 +340,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         let fCenterToHitPointLength: f32 = length(centerToNeighborHitPointUnNormalized);
         let fNeighborToHitPointLength: f32 = length(neighborToNeighborHitPointUnNormalized);
         fJacobian *= ((fCenterToHitPointLength * fCenterToHitPointLength) / (fNeighborToHitPointLength * fNeighborToHitPointLength));
-        fJacobian = clamp(fJacobian, 0.0f, 1.0f);
+        //fJacobian = clamp(fJacobian, 0.0f, 1.0f);
 
         // compare normals for jacobian
         let fDP0: f32 = max(dot(neighborTemporalHitNormal.xyz, centerToNeighborHitPointNormalized * -1.0f), 0.0f);
         var fDP1: f32 = max(dot(neighborTemporalHitNormal.xyz, neighborToNeighborHitPointNormalized * -1.0f), 1.0e-4f);
-        fJacobian = fDP0 / fDP1;
+        fJacobian = clamp(fDP0 / fDP1, 0.0f, 1.0f);
 
-fJacobian = 1.0f;
+//fJacobian = 1.0f;
 
         randomResult = nextRand(randomResult.miSeed);
         var updateResult: ReservoirResult = updateReservoir(
@@ -390,6 +391,7 @@ fJacobian = 1.0f;
     }
     
     output.mRadiance = vec4<f32>(resultRadiance.xyz, 1.0f);
+    output.mHitPosition = vec4<f32>(intersectionInfo.mHitPosition, f32(intersectionInfo.miHitTriangle));
 
     return output;
 }

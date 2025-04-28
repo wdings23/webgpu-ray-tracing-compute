@@ -10,6 +10,13 @@
             "ScaleWidth": 1.0,
             "ScaleHeight": 1.0
         },
+        {
+            "Name" : "Hit Position Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float",
+            "ScaleWidth": 1.0,
+            "ScaleHeight": 1.0
+        },
         
 
         {
