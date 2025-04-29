@@ -57,6 +57,42 @@
             "PassType": "Full Triangle"
         },
         {
+            "Name": "SVGF Diffuse 0 Graphics",
+            "Pipeline": "svgf-graphics-0.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle",
+            "UniformData": {
+                "Name": "uniformBuffer",
+                "Offset": 0,
+                "Data": 0,
+                "DataType": "float"
+            }
+        },
+        {
+            "Name": "SVGF Diffuse 1 Graphics",
+            "Pipeline": "svgf-graphics-1.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle",
+            "UniformData": {
+                "Name": "uniformBuffer",
+                "Offset": 0,
+                "Data": 1,
+                "DataType": "float"
+            }
+        },
+        {
+            "Name": "SVGF Diffuse 2 Graphics",
+            "Pipeline": "svgf-graphics-2.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle",
+            "UniformData": {
+                "Name": "uniformBuffer",
+                "Offset": 0,
+                "Data": 2,
+                "DataType": "float"
+            }
+        },
+        {
             "Name": "Build Irradiance Cache Compute",
             "Pipeline": "build-irradiance-cache-compute.json",
             "Type": "Compute",

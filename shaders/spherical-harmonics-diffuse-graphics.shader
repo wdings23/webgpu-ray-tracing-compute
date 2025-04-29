@@ -71,9 +71,12 @@ var prevMotionVectorTexture: texture_2d<f32>;
 var sampleRadianceTexture: texture_2d<f32>;
 
 @group(1) @binding(1)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var momentTexture: texture_storage_2d<rgba32float, write>;
 
 @group(1) @binding(2)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(3)
 var textureSampler: sampler;
 
 struct SHOutput 
@@ -193,7 +196,20 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         0
     ) * fDisocclusion;
 
-    var shOutput: SHOutput = encodeSphericalHarmonics(
+    var shOutput: SHOutput;
+    shOutput.mCoefficients0 = SHCoefficent0;
+    shOutput.mCoefficients1 = SHCoefficent1;
+    shOutput.mCoefficients2 = SHCoefficent2;
+    let decodedSHHistory: vec3<f32> = decodeFromSphericalHarmonicCoefficients(
+        shOutput,
+        normal.xyz,
+        vec3<f32>(10.0f, 10.0f, 10.0f),
+        fHistoryCount
+    );
+    let fLuminanceHistory: f32 = computeLuminance(decodedSHHistory);
+    let momentHistory: vec2<f32> = vec2<f32>(fLuminanceHistory, fLuminanceHistory * fLuminanceHistory);
+
+    shOutput = encodeSphericalHarmonics(
         radiance.xyz,
         rayDirection.xyz,
         SHCoefficent0,
@@ -210,7 +226,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     );
 
     // clamp history count, lower means faster update
-    let kfMaxHistoryCount: f32 = 30.0f;
+    let kfMaxHistoryCount: f32 = 20.0f;
     fHistoryCount += 1.0f;
     if(fHistoryCount >= kfMaxHistoryCount)
     {
@@ -232,6 +248,21 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
     output.sphericalHarmonics1 = shOutput.mCoefficients1;
     output.sphericalHarmonics2 = shOutput.mCoefficients2;
     output.inverseSphericalHarmonics = vec4<f32>(decodedSH.xyz, fHistoryCount + 1.0f);
+
+    let fLuminance: f32 = computeLuminance(decodedSH.xyz);
+    let moment: vec2<f32> = vec2<f32>(fLuminance, fLuminance * fLuminance);
+    var mixedMoment: vec4<f32> = vec4<f32>(
+        mix(momentHistory.x, moment.x, 0.1f),
+        mix(momentHistory.y, moment.y, 0.1f),
+        0.0f,
+        1.0f
+    );
+    mixedMoment.z = mixedMoment.y - mixedMoment.x * mixedMoment.x;
+    textureStore(
+        momentTexture,
+        screenCoord,
+        mixedMoment
+    );
 
     return output;
 }
@@ -397,4 +428,13 @@ fn isDisoccluded2(
     var fCheckWorldPositionDistance: f32 = dot(worldPositionDiff, worldPositionDiff);
 
     return !((iMesh == iPrevMesh) && (fDepth == fPrevDepth));
+}
+
+/*
+**
+*/
+fn computeLuminance(
+    radiance: vec3<f32>) -> f32
+{
+    return dot(radiance, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
 }

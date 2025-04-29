@@ -39,6 +39,11 @@
             "Name": "hitTriangleTexture",
             "Type": "Render Target",
             "Format": "rgba32float"
+        },
+        {
+            "Name": "diffuseRadianceMomentTexture",
+            "Type": "Render Target",
+            "Format": "rgba32float"
         }
     ]
 }

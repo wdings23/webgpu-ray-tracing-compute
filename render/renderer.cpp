@@ -629,6 +629,7 @@ namespace Render
         auto const& jobs = doc["Jobs"].GetArray();
         for(auto const& job : jobs)
         {
+            // job name and type
             createInfo.mName = job["Name"].GetString();
             std::string jobType = job["Type"].GetString();
             createInfo.mJobType = Render::JobType::Graphics;
@@ -643,6 +644,7 @@ namespace Render
 
             maOrderedRenderJobs.push_back(createInfo.mName);
 
+            // pass type
             std::string passStr = job["PassType"].GetString();
             if(passStr == "Compute")
             {
@@ -683,6 +685,7 @@ namespace Render
 
             aShaderModuleFilePath.push_back(pipelineFilePath);
 
+            // create output attachments first
             maRenderJobs[createInfo.mName] = std::make_unique<Render::CRenderJob>();
             maRenderJobs[createInfo.mName]->createWithOnlyOutputAttachments(createInfo);
 
@@ -706,6 +709,7 @@ namespace Render
             apRenderJobs.push_back(maRenderJobs[renderJobName].get());
         }
 
+        // attach input attachments to output attachments from above, also set default uniform buffer
         createInfo.mpDrawTextOutputAttachment = &mFontOutputAttachment;
         createInfo.mpDefaultUniformBuffer = &maBuffers["default-uniform-buffer"];
         createInfo.mpaRenderJobs = &apRenderJobs;
@@ -728,6 +732,46 @@ namespace Render
             ++iIndex;
         }
 
+        for(auto const& job : jobs)
+        {
+            if(job.HasMember("UniformData"))
+            {
+                std::string renderJobName = job["Name"].GetString();
+                std::string uniformBufferName = job["UniformData"]["Name"].GetString();
+                uint64_t iBufferOffset = job["UniformData"]["Offset"].GetUint64();
+                std::string dataType = job["UniformData"]["DataType"].GetString();
+                if(dataType == "float")
+                {
+                    float fData = job["UniformData"]["Data"].GetFloat();
+                    mpDevice->GetQueue().WriteBuffer(
+                        maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
+                        iBufferOffset,
+                        &fData,
+                        sizeof(fData));
+                }
+                else if(dataType == "uint")
+                {
+                    uint32_t iData = job["UniformData"]["Data"].GetUint();
+                    mpDevice->GetQueue().WriteBuffer(
+                        maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
+                        iBufferOffset,
+                        &iData,
+                        sizeof(iData));
+                }
+                else if(dataType == "int")
+                {
+                    int32_t iData = job["UniformData"]["Data"].GetInt();
+                    mpDevice->GetQueue().WriteBuffer(
+                        maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
+                        iBufferOffset,
+                        &iData,
+                        sizeof(iData));
+                }
+
+                
+            }
+        }
+
     }
 
     /*
@@ -743,7 +787,7 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["TAA Graphics"]->mOutputImageAttachments["TAA Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments["Selection Output"];
-        //wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
+        wgpu::Texture& swapChainTexture = maRenderJobs[mSwapChainRenderJobName]->mOutputImageAttachments[mSwapChainAttachmentName];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Diffuse Temporal Restir Graphics"]->mOutputImageAttachments["Sample Ray Direction Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Spherical Harmonics Diffuse Graphics"]->mOutputImageAttachments["Inverse Spherical Harmonics Output"];
@@ -752,7 +796,7 @@ namespace Render
         //wgpu::Texture& swapChainTexture = maRenderJobs["Debug Ambient Occlusion Graphics"]->mOutputImageAttachments["Ambient Occlusion Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Ray Tracing Composite Graphics"]->mOutputImageAttachments["Ray Tracing Composite Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Temporal Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
-        wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Spatial Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
+        //wgpu::Texture& swapChainTexture = maRenderJobs["Emissive Spatial Restir Graphics"]->mOutputImageAttachments["Radiance Output"];
         //wgpu::Texture& swapChainTexture = maRenderJobs["Spherical Harmonics Emissive Graphics"]->mOutputImageAttachments["Emissive Inverse Spherical Harmonics Output"];
         //assert(maRenderJobs.find("Mesh Selection Graphics") != maRenderJobs.end());
         //assert(maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.find("Selection Output") != maRenderJobs["Mesh Selection Graphics"]->mOutputImageAttachments.end());

@@ -1,0 +1,72 @@
+{
+    "Type": "Graphics",
+    "PassType": "Full Triangle",
+    "Shader": "svgf-graphics-1.shader",
+    "Attachments": [
+        {
+            "Name" : "SVGF Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        {
+            "Name" : "Moment Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        
+        {
+            "Name" : "World Position Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "Normal Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "SVGF Output",
+            "Type": "TextureInput",
+            "ParentJobName": "SVGF Diffuse 0 Graphics"
+        },
+        {
+            "Name": "Moment Output",
+            "Type": "TextureInput",
+            "ParentJobName": "SVGF Diffuse 0 Graphics"
+        }
+    ],
+    "ShaderResources": [
+        { 
+            "name" : "uniformBuffer",
+            "type" : "buffer",
+            "size" : 64,
+            "shader_stage" : "all",
+            "usage": "uniform"
+        }
+    ],
+    "BlendStates": [
+        {
+            "Enabled": "False"
+        }
+    ],
+    "DepthStencilState":
+    {
+        "DepthEnable": "True",
+        "DepthWriteMask": "One",
+        "DepthFunc": "LessEqual",
+        "StencilEnable": "False"
+    },
+    "RasterState":
+    {
+        "FillMode": "Solid",
+        "CullMode": "None",
+        "FrontFace": "CounterClockwise"
+    },
+    "VertexFormat":
+    [
+        "Vec4",
+        "Vec4",
+        "Vec4"
+    ],
+    "UseGlobalTextures": "True"
+}
