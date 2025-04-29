@@ -15,14 +15,14 @@
             "ParentJobName": "Direct Radiance Graphics"
         },
         {
-            "Name": "Inverse Spherical Harmonics Output",
+            "Name": "Diffuse SVGF Output",
             "Type": "TextureInput",
-            "ParentJobName": "Spherical Harmonics Diffuse Graphics"
+            "ParentJobName": "SVGF Diffuse 2 Graphics"
         },
         {
-            "Name": "Emissive Inverse Spherical Harmonics Output",
+            "Name": "Emissive SVGF Output",
             "Type": "TextureInput",
-            "ParentJobName": "Spherical Harmonics Emissive Graphics"
+            "ParentJobName": "SVGF Emissive 3 Graphics"
         },
         {
             "Name": "Sample Ray Direction Output",

@@ -1,17 +1,17 @@
 {
     "Type": "Graphics",
     "PassType": "Full Triangle",
-    "Shader": "svgf-graphics-1.shader",
+    "Shader": "svgf-graphics.shader",
     "Attachments": [
         {
-            "Name" : "SVGF Output",
+            "Name" : "Emissive SVGF Output",
             "Type": "TextureOutput",
             "Format": "rgba32float"
         },
         {
             "Name" : "Moment Output",
             "Type": "TextureOutput",
-            "Format": "rgba32float"
+            "Format": "rgba16float"
         },
         
         {
@@ -25,17 +25,20 @@
             "ParentJobName": "Deferred Indirect Graphics"
         },
         {
-            "Name" : "SVGF Output",
+            "Name" : "Emissive Inverse Spherical Harmonics Output",
             "Type": "TextureInput",
-            "ParentJobName": "SVGF Diffuse 1 Graphics"
-        },
-        {
-            "Name": "Moment Output",
-            "Type": "TextureInput",
-            "ParentJobName": "SVGF Diffuse 1 Graphics"
+            "ParentJobName": "Spherical Harmonics Emissive Graphics"
         }
     ],
     "ShaderResources": [
+        {
+            "name": "emissiveRadianceMomentTexture",
+            "type": "texture",
+            "shader_stage": "fragment",
+            "usage": "read_only_storage",
+            "sample": "unfilterable_float",
+            "external": "true"
+        },
         { 
             "name" : "uniformBuffer",
             "type" : "buffer",

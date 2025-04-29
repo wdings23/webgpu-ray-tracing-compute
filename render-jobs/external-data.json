@@ -44,6 +44,11 @@
             "Name": "diffuseRadianceMomentTexture",
             "Type": "Render Target",
             "Format": "rgba32float"
+        },
+        {
+            "Name": "emissiveRadianceMomentTexture",
+            "Type": "Render Target",
+            "Format": "rgba32float"
         }
     ]
 }

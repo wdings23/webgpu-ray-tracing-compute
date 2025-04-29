@@ -4,14 +4,14 @@
     "Shader": "svgf-graphics-1.shader",
     "Attachments": [
         {
-            "Name" : "SVGF Output",
+            "Name" : "Diffuse SVGF Output",
             "Type": "TextureOutput",
             "Format": "rgba32float"
         },
         {
             "Name" : "Moment Output",
             "Type": "TextureOutput",
-            "Format": "rgba32float"
+            "Format": "rgba16float"
         },
         
         {
@@ -25,7 +25,7 @@
             "ParentJobName": "Deferred Indirect Graphics"
         },
         {
-            "Name" : "SVGF Output",
+            "Name" : "Diffuse SVGF Output",
             "Type": "TextureInput",
             "ParentJobName": "SVGF Diffuse 0 Graphics"
         },
