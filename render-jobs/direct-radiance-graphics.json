@@ -46,6 +46,13 @@
             "shader_stage" : "fragment",
             "usage": "read_only_storage",
             "external": "true"
+        },
+        {
+            "name": "blueNoiseTexture",
+            "type": "texture",
+            "shader_stage": "fragment",
+            "usage": "read_only_storage",
+            "external": "true"
         }
     ],
     "BlendStates": [

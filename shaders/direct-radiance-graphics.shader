@@ -90,9 +90,12 @@ var<storage, read> aSceneVertexPositions: array<VertexFormat>;
 var<storage, read> aiSceneTriangleIndices: array<u32>;
 
 @group(1) @binding(3)
-var<uniform> defaultUniformBuffer: DefaultUniformData;
+var blueNoiseTexture: texture_2d<f32>;
 
 @group(1) @binding(4)
+var<uniform> defaultUniformBuffer: DefaultUniformData;
+
+@group(1) @binding(5)
 var textureSampler: sampler;
 
 struct VertexOutput 
@@ -142,9 +145,37 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         vec2<f32>(0.0f, 0.0f)
     ).xyz;
 
+    let blueNoiseTextureSize: vec2<u32> = textureDimensions(blueNoiseTexture);
+    var screenCoord: vec2<u32> = vec2<u32>(
+        u32(in.uv.x * f32(defaultUniformBuffer.miScreenWidth)),
+        u32(in.uv.y * f32(defaultUniformBuffer.miScreenHeight))
+    );
+    screenCoord.x = (screenCoord.x + u32(defaultUniformBuffer.miFrame)) % u32(blueNoiseTextureSize.x);
+    screenCoord.y = (screenCoord.y + u32(defaultUniformBuffer.miFrame / defaultUniformBuffer.miScreenWidth)) % u32(blueNoiseTextureSize.y);
+    
+    var blueNoise: vec4<f32> = textureLoad(
+        blueNoiseTexture,
+        screenCoord,
+        0
+    );
+
+    // ray direction in disc of given radius size
+    let fLightRadius: f32 = 4.0f;
+    var up: vec3<f32> = vec3<f32>(0.0f, 1.0f, 0.0f);
+    if(abs(defaultUniformBuffer.mLightDirection.y) >= 0.99f)
+    {
+        up = vec3<f32>(1.0f, 0.0f, 0.0f);
+    }
+    let tangent: vec3f = cross(up, defaultUniformBuffer.mLightDirection.xyz);
+    let binormal: vec3f = cross(defaultUniformBuffer.mLightDirection.xyz, tangent);
+    let fAngle: f32 = 2.0f * 3.14159f * blueNoise.x;
+    let rotation: vec3<f32> = (tangent.xyz * cos(fAngle) + binormal.xyz * sin(fAngle)) * fLightRadius;
+    let rayEnd: vec3<f32> = worldPosition.xyz + defaultUniformBuffer.mLightDirection.xyz * 100.0f + rotation;  
+    let rayDirection: vec3<f32> = normalize(rayEnd - worldPosition.xyz);
+
     var ray: Ray;
-    ray.mOrigin = vec4<f32>(worldPosition.xyz + defaultUniformBuffer.mLightDirection.xyz * 0.01f, 1.0f);
-    ray.mDirection = vec4<f32>(defaultUniformBuffer.mLightDirection.xyz, 1.0f);
+    ray.mOrigin = vec4<f32>(worldPosition.xyz + rayDirection * 0.01f, 1.0f);
+    ray.mDirection = vec4<f32>(rayDirection, 1.0f);
 
     var intersectionInfo: IntersectBVHResult = intersectBVH4(ray, 0u);
     if(intersectionInfo.miHitTriangle != UINT32_MAX)
