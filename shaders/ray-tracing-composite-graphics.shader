@@ -124,6 +124,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         1.0f
     );
 
+    // sky texture
     let worldScreenCoord: vec2<u32> = vec2<u32>(
         u32(in.uv.x * f32(defaultUniformBuffer.miScreenWidth)),
         u32(in.uv.y * f32(defaultUniformBuffer.miScreenHeight))
@@ -152,7 +153,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
             screenCoord,
             0
         );
-        output.mRadiance = vec4<f32>(sky.xyz / 50.0f, 1.0f);
+        output.mRadiance = vec4<f32>(sky.xyz / 30.0f, 1.0f);
     }
 
     return output;

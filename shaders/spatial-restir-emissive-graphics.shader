@@ -306,7 +306,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput
         let fDistanceAttenuation: f32 = max(1.0f / max(fDistance, 1.0f), 1.0f);
         let rayDirection: vec3<f32> = normalize(diff);
         let fRadianceDP: f32 = max(dot(normal.xyz, rayDirection), 0.0f);
-        centerRadiance = vec4<f32>(centerMaterial.mEmissive.xyz * fRadianceDP * fDistanceAttenuation * fOneOverPDF, 1.0f);
+        centerRadiance = vec4<f32>(centerMaterial.mEmissive.xyz * uniformBuffer.mfEmissiveValue * fRadianceDP * fDistanceAttenuation * fOneOverPDF, 1.0f);
         fCenterLuminance = computeLuminance(centerRadiance.xyz);
     }
 
