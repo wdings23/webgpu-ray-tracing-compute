@@ -1326,6 +1326,7 @@ int main()
     instance.WaitAny(future, UINT64_MAX);
 
     wgpu::Bool bHasMultiDrawIndirect = adapter.HasFeature(wgpu::FeatureName::MultiDrawIndirect);
+    wgpu::Bool bHasF16Support = adapter.HasFeature(wgpu::FeatureName::ShaderF16);
 
     // be able to set user given labels for objects
     char const* aszToggleNames[] =
@@ -1337,8 +1338,9 @@ int main()
     wgpu::FeatureName aFeatureNames[] =
     {
     #if defined(_MSC_VER)
-        wgpu::FeatureName::MultiDrawIndirect
+        wgpu::FeatureName::MultiDrawIndirect,
     #endif // _MSC_VER
+        wgpu::FeatureName::Float32Filterable,
     };
     wgpu::Limits requireLimits = {};
     requireLimits.maxBufferSize = 1000000000;

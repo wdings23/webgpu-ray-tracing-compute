@@ -1,0 +1,134 @@
+{
+    "Type": "Graphics",
+    "PassType": "Full Triangle",
+    "Shader": "spherical-harmonics-diffuse-graphics.shader",
+    "Attachments": [
+        {
+            "Name" : "Direct Spherical Harmonics 0 Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        {
+            "Name" : "Direct Spherical Harmonics 1 Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        {
+            "Name" : "Direct Spherical Harmonics 2 Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+        {
+            "Name" : "Direct Inverse Spherical Harmonics Output",
+            "Type": "TextureOutput",
+            "Format": "rgba32float"
+        },
+
+        {
+            "Name" : "Direct Radiance Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Direct Radiance Graphics"
+        },
+        {
+            "Name" : "World Position Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "Normal Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "Texture Coordinate And Clip Space Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name" : "Previous World Position Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Copy Render Targets"
+        },
+        {
+            "Name" : "Previous Normal Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Copy Render Targets"
+        },
+        {
+            "Name": "Hit Position Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics"
+        },
+        {
+            "Name": "Sample Ray Direction Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Diffuse Temporal Restir Graphics"
+        },
+        {
+            "Name": "Previous Direct Spherical Harmonics 0 Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Copy Render Targets"
+        },
+        {
+            "Name": "Previous Direct Spherical Harmonics 1 Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Copy Render Targets"
+        },
+        {
+            "Name": "Previous Direct Spherical Harmonics 2 Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Copy Render Targets"
+        },
+        {
+            "Name": "Previous Direct Spherical Harmonics Radiance Output",
+            "Type": "TextureInput",
+        "ParentJobName": "Copy Render Targets"
+        },
+        {
+            "Name": "Motion Vector Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Deferred Indirect Graphics"
+        },
+        {
+            "Name": "Previous Motion Vector Output",
+            "Type": "TextureInput",
+            "ParentJobName": "Copy Render Targets"
+        }
+
+    ],
+    "ShaderResources": [
+        {
+            "name": "sampleDirectRadianceTexture",
+            "type": "texture",
+            "shader_stage": "fragment",
+            "usage": "read_only_storage",
+            "sample": "unfilterable_float",
+            "external": "true"
+        },
+        {
+            "name": "directRadianceMomentTexture",
+            "type": "texture",
+            "shader_stage": "fragment",
+            "usage": "write_only_storage",
+            "external": "true"
+        }
+    ],
+    "BlendStates": [
+        {
+            "Enabled": "True"
+        }
+    ],
+    "DepthStencilState":
+    {
+        "DepthEnable": "False",
+        "DepthWriteMask": "One",
+        "DepthFunc": "LessEqual",
+        "StencilEnable": "False"
+    },
+    "RasterState":
+    {
+        "FillMode": "Solid",
+        "CullMode": "None",
+        "FrontFace": "CounterClockwise"
+    }
+}

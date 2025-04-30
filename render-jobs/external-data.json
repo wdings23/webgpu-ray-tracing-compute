@@ -36,6 +36,11 @@
             "Format": "rgba32float"
         },
         {
+            "Name": "sampleDirectRadianceTexture",
+            "Type": "Render Target",
+            "Format": "rgba32float"
+        },
+        {
             "Name": "hitTriangleTexture",
             "Type": "Render Target",
             "Format": "rgba32float"
@@ -47,6 +52,11 @@
         },
         {
             "Name": "emissiveRadianceMomentTexture",
+            "Type": "Render Target",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "directRadianceMomentTexture",
             "Type": "Render Target",
             "Format": "rgba32float"
         }

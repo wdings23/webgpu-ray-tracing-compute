@@ -189,6 +189,35 @@
             "ParentJobName": "Emissive Spatial Restir Graphics",
             "ParentName": "Hit Position Output",
             "Format": "rgba32float"
+        },
+
+        {
+            "Name": "Previous Direct Spherical Harmonics 0 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Direct Graphics",
+            "ParentName": "Direct Spherical Harmonics 0 Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Direct Spherical Harmonics 1 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Direct Graphics",
+            "ParentName": "Direct Spherical Harmonics 1 Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Direct Spherical Harmonics 2 Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Direct Graphics",
+            "ParentName": "Direct Spherical Harmonics 2 Output",
+            "Format": "rgba32float"
+        },
+        {
+            "Name": "Previous Direct Spherical Harmonics Radiance Output",
+            "Type": "TextureOutput",
+            "ParentJobName": "Spherical Harmonics Direct Graphics",
+            "ParentName": "Direct Inverse Spherical Harmonics Output",
+            "Format": "rgba32float"
         }
     ]
 }

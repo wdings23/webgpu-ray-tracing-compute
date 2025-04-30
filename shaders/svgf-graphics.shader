@@ -248,13 +248,17 @@ fn svgFilter(
                 kfDepthPhi);
             
             let fRetTotalVariance: f32 = 0.0f;
-            let fSampleLuminanceWeight: f32 = computeSVGFLuminanceStoppingWeight(
-                fSampleLuminance,
-                fLuminance,
-                iX,
-                iY,
-                fLuminancePhi,
-                fEpsilon);
+            var fSampleLuminanceWeight: f32 = 1.0f; 
+            if(uniformBuffer.mData.y > 0.0f)
+            { 
+                fSampleLuminanceWeight = computeSVGFLuminanceStoppingWeight(
+                    fSampleLuminance,
+                    fLuminance,
+                    iX,
+                    iY,
+                    fLuminancePhi,
+                    fEpsilon);
+            }
 
             let fSampleWeight: f32 = fSampleNormalWeight * fSampleDepthWeight * fSampleLuminanceWeight;
 

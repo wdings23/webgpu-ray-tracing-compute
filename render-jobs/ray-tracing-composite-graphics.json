@@ -10,9 +10,9 @@
         },
         
         {
-            "Name": "Direct Radiance Output",
+            "Name": "Direct SVGF Output",
             "Type": "TextureInput",
-            "ParentJobName": "Direct Radiance Graphics"
+            "ParentJobName": "SVGF Direct 2 Graphics"
         },
         {
             "Name": "Diffuse SVGF Output",

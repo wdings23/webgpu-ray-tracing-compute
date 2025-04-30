@@ -737,37 +737,41 @@ namespace Render
             if(job.HasMember("UniformData"))
             {
                 std::string renderJobName = job["Name"].GetString();
-                std::string uniformBufferName = job["UniformData"]["Name"].GetString();
-                uint64_t iBufferOffset = job["UniformData"]["Offset"].GetUint64();
-                std::string dataType = job["UniformData"]["DataType"].GetString();
-                if(dataType == "float")
+                
+                auto uniformDataEntries = job["UniformData"].GetArray();
+                for(auto& uniformDataEntry : uniformDataEntries)
                 {
-                    float fData = job["UniformData"]["Data"].GetFloat();
-                    mpDevice->GetQueue().WriteBuffer(
-                        maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
-                        iBufferOffset,
-                        &fData,
-                        sizeof(fData));
+                    std::string uniformBufferName = uniformDataEntry["Name"].GetString();
+                    uint64_t iBufferOffset = uniformDataEntry["Offset"].GetUint64();
+                    std::string dataType = uniformDataEntry["DataType"].GetString();
+                    if(dataType == "float")
+                    {
+                        float fData = uniformDataEntry["Data"].GetFloat();
+                        mpDevice->GetQueue().WriteBuffer(
+                            maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
+                            iBufferOffset,
+                            &fData,
+                            sizeof(fData));
+                    }
+                    else if(dataType == "uint")
+                    {
+                        uint32_t iData = uniformDataEntry["Data"].GetUint();
+                        mpDevice->GetQueue().WriteBuffer(
+                            maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
+                            iBufferOffset,
+                            &iData,
+                            sizeof(iData));
+                    }
+                    else if(dataType == "int")
+                    {
+                        int32_t iData = uniformDataEntry["Data"].GetInt();
+                        mpDevice->GetQueue().WriteBuffer(
+                            maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
+                            iBufferOffset,
+                            &iData,
+                            sizeof(iData));
+                    }
                 }
-                else if(dataType == "uint")
-                {
-                    uint32_t iData = job["UniformData"]["Data"].GetUint();
-                    mpDevice->GetQueue().WriteBuffer(
-                        maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
-                        iBufferOffset,
-                        &iData,
-                        sizeof(iData));
-                }
-                else if(dataType == "int")
-                {
-                    int32_t iData = job["UniformData"]["Data"].GetInt();
-                    mpDevice->GetQueue().WriteBuffer(
-                        maRenderJobs[renderJobName]->mUniformBuffers[uniformBufferName],
-                        iBufferOffset,
-                        &iData,
-                        sizeof(iData));
-                }
-
                 
             }
         }

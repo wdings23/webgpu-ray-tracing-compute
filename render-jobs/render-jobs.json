@@ -57,88 +57,192 @@
             "PassType": "Full Triangle"
         },
         {
+            "Name": "Spherical Harmonics Direct Graphics",
+            "Pipeline": "spherical-harmonics-direct-graphics.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle"
+        },
+        {
             "Name": "SVGF Diffuse 0 Graphics",
             "Pipeline": "svgf-diffuse-graphics-0.json",
             "Type": "Graphics",
             "PassType": "Full Triangle",
-            "UniformData": {
-                "Name": "uniformBuffer",
-                "Offset": 0,
-                "Data": 0,
-                "DataType": "float"
-            }
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 0,
+                    "DataType": "float"
+                },
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 4,
+                    "Data": 1.0,
+                    "DataType": "float"
+                }
+            ]
         },
         {
             "Name": "SVGF Diffuse 1 Graphics",
             "Pipeline": "svgf-diffuse-graphics-1.json",
             "Type": "Graphics",
             "PassType": "Full Triangle",
-            "UniformData": {
-                "Name": "uniformBuffer",
-                "Offset": 0,
-                "Data": 1,
-                "DataType": "float"
-            }
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 1,
+                    "DataType": "float"
+                },
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 4,
+                    "Data": 1,
+                    "DataType": "float"
+                }
+            ]
         },
         {
             "Name": "SVGF Diffuse 2 Graphics",
             "Pipeline": "svgf-diffuse-graphics-2.json",
             "Type": "Graphics",
             "PassType": "Full Triangle",
-            "UniformData": {
-                "Name": "uniformBuffer",
-                "Offset": 0,
-                "Data": 2,
-                "DataType": "float"
-            }
+            "UniformData":[
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 2,
+                    "DataType": "float"
+                },
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 4,
+                    "Data": 1,
+                    "DataType": "float"
+                }
+            ]
         },
         {
             "Name": "SVGF Emissive 0 Graphics",
             "Pipeline": "svgf-emissive-graphics-0.json",
             "Type": "Graphics",
             "PassType": "Full Triangle",
-            "UniformData": {
-                "Name": "uniformBuffer",
-                "Offset": 0,
-                "Data": 0,
-                "DataType": "float"
-            }
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 0,
+                    "DataType": "float"
+                },
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 4,
+                    "Data": 1.0,
+                    "DataType": "float"
+                }
+            ]
         },
         {
             "Name": "SVGF Emissive 1 Graphics",
             "Pipeline": "svgf-emissive-graphics-1.json",
             "Type": "Graphics",
             "PassType": "Full Triangle",
-            "UniformData": {
-                "Name": "uniformBuffer",
-                "Offset": 0,
-                "Data": 1,
-                "DataType": "float"
-            }
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 1,
+                    "DataType": "float"
+                },
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 4,
+                    "Data": 1.0,
+                    "DataType": "float"
+                }
+            ]
         },
         {
             "Name": "SVGF Emissive 2 Graphics",
             "Pipeline": "svgf-emissive-graphics-2.json",
             "Type": "Graphics",
             "PassType": "Full Triangle",
-            "UniformData": {
-                "Name": "uniformBuffer",
-                "Offset": 0,
-                "Data": 2,
-                "DataType": "float"
-            }
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 2,
+                    "DataType": "float"
+                },
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 4,
+                    "Data": 1.0,
+                    "DataType": "float"
+                }
+            ]
         },
         {
             "Name": "SVGF Emissive 3 Graphics",
             "Pipeline": "svgf-emissive-graphics-3.json",
             "Type": "Graphics",
             "PassType": "Full Triangle",
-            "UniformData": {
-                "Name": "uniformBuffer",
-                "Offset": 0,
-                "Data": 3,
-                "DataType": "float"
-            }
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 3,
+                    "DataType": "float"
+                },
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 4,
+                    "Data": 1.0,
+                    "DataType": "float"
+                }
+            ]
+        },
+        {
+            "Name": "SVGF Direct 0 Graphics",
+            "Pipeline": "svgf-direct-graphics-0.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle",
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 0,
+                    "DataType": "float"
+                }
+            ]
+        },
+        {
+            "Name": "SVGF Direct 1 Graphics",
+            "Pipeline": "svgf-direct-graphics-1.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle",
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 2,
+                    "DataType": "float"
+                }
+            ]
+        },
+        {
+            "Name": "SVGF Direct 2 Graphics",
+            "Pipeline": "svgf-direct-graphics-1.json",
+            "Type": "Graphics",
+            "PassType": "Full Triangle",
+            "UniformData": [
+                {
+                    "Name": "uniformBuffer",
+                    "Offset": 0,
+                    "Data": 1,
+                    "DataType": "float"
+                }
+            ]
         },
         {
             "Name": "Build Irradiance Cache Compute",
